@@ -1,4 +1,6 @@
-# iAM Smart (백현화랑 특별행정구)
+# ImaSmart – iAM Smart (백현화랑 특별행정구)
+
+백현화랑특별행정구 신원 확인 시스템.
 
 정부 공통 디지털 신분·로그인 플랫폼. 홍콩 "iAM Smart(智方便)"의 구성과 흐름을 따른다.
 
@@ -17,7 +19,7 @@
 ## 로컬 실행
 
 ```
-python3 dev/serve.py          # http://127.0.0.1:8800/bhg_iAMSmart/
+python3 dev/serve.py          # http://127.0.0.1:8800/ImaSmart/
 ```
 
 - `/BHG/`, `/bhg_Immigration_Department/`는 `../BHG_Homepage-iamsmart`, `../bhg_Immigration_Department-iamsmart`
@@ -27,10 +29,10 @@ python3 dev/serve.py          # http://127.0.0.1:8800/bhg_iAMSmart/
 
 ## GitHub로 옮기기
 
-1. GitHub에 저장소 `bhg_iAMSmart`를 만든다 → `git remote add origin git@github.com:lshdev7/bhg_iAMSmart.git` → `git push -u origin main`
-2. Pages를 main 브랜치 루트로 켠다. 주소: `https://lshdev7.github.io/bhg_iAMSmart/`
+1. GitHub에 저장소 `ImaSmart`를 만든다 → `git remote add origin git@github.com:lshdev7/ImaSmart.git` → `git push -u origin main`
+2. Pages를 main 브랜치 루트로 켠다. 주소: `https://lshdev7.github.io/ImaSmart/`
 3. GovBHG·출입경사무처 저장소에서 `iamsmart` 브랜치를 main에 병합하고 push한다
-   (`lib/ias-client.js`를 `/bhg_iAMSmart/...` 루트 상대 경로로 불러오므로 주소 변경이 필요 없다).
+   (`lib/ias-client.js`를 `/ImaSmart/...` 루트 상대 경로로 불러오므로 주소 변경이 필요 없다).
 
 ## Supabase로 옮기기
 
