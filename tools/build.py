@@ -101,7 +101,7 @@ def page(i, cur, title, body, home=False):
     txt = ('<!doctype html><html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
            '<title>%s</title><link rel="icon" href="%%A%%favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="%%A%%site.css"></head>'
            '<body class="lang-%s%s">%s<main id="main">%s<div class="wrap%s">%s</div></main>%s'
-           '<script src="%slib/config.js"></script><script src="%slib/adapter-local.js"></script><script src="%slib/adapter-supabase.js"></script>'
+           '<script src="%slib/config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script><script src="%slib/adapter-local.js"></script><script src="%slib/adapter-supabase.js"></script>'
            '<script src="%slib/ias-api.js"></script><script src="%slib/qrcode.js"></script><script src="%%A%%site.js"></script></body></html>'
            % (hl, html.escape(g(title, i) + ("" if home else " | " + g(D.UI["site"], i))), LANGS[i][0], " home" if home else "", header(i, cur), band,
               " homew" if home else " content", body, footer(i, cur), up, up, up, up, up))

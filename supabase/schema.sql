@@ -1,6 +1,6 @@
 -- iAM Smart (Baekhyeon Hwarang SAR) – Supabase schema for lib/adapter-supabase.js
--- Run in the SQL editor of the Supabase project. Then enable "Anonymous sign-ins" (Authentication > Providers)
--- and create a private storage bucket named "ias-files".
+-- Run in the SQL editor of the Supabase project, then enable "Anonymous sign-ins"
+-- (Authentication > Sign In / Providers). The private storage bucket "ias-files" is created at the end.
 -- Model: every "iAM Smart" app installation signs in anonymously; the account row is bound to that auth user
 -- (device_uid). Online services (GovBHG, Immigration Department) are anonymous web pages: they create requests and
 -- poll them with a random secret through SECURITY DEFINER functions; they never read tables directly.
@@ -139,8 +139,12 @@ create or replace function public.ias_rebind(p_id_no text, p_pin text) returns u
 declare a public.ias_accounts;
 begin
   select * into a from public.ias_accounts where id_no = p_id_no;
-  if not found or a.pin_hash <> crypt(p_pin, a.pin_hash) then return null; end if;
-  update public.ias_accounts set device_uid = auth.uid(), status = 'active', suspended_at = null where id = a.id;
+  if not found or a.status = 'invalid' then return null; end if;
+  if a.pin_hash <> crypt(p_pin, a.pin_hash) then                      -- same 10-attempt limit as login
+    update public.ias_accounts set pin_fail = pin_fail + 1, status = case when pin_fail + 1 >= 10 then 'invalid' else status end where id = a.id;
+    return null;
+  end if;
+  update public.ias_accounts set device_uid = auth.uid(), status = 'active', suspended_at = null, pin_fail = 0 where id = a.id;
   insert into public.ias_logs (account_id, action, client) values (a.id, 'rebind', 'iAM Smart');
   return a.id;
 end $$;
@@ -228,3 +232,5 @@ grant execute on function public.ias_register(jsonb), public.ias_verify_pin(uuid
 create policy ias_files_rw on storage.objects for all to authenticated
   using (bucket_id = 'ias-files' and (storage.foldername(name))[1] = public.ias_my_account()::text)
   with check (bucket_id = 'ias-files' and (storage.foldername(name))[1] = public.ias_my_account()::text);
+
+insert into storage.buckets (id, name, public) values ('ias-files', 'ias-files', false) on conflict (id) do nothing;
