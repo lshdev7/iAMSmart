@@ -350,3 +350,33 @@ grant execute on function public.ias_register(jsonb), public.ias_verify_pin(uuid
   public.ias_set_status(text), public.ias_upgrade(), public.ias_my_account(), public.ias_my_documents(),
   public.ias_rebind(text, text), public.ias_create_transfer(uuid), public.ias_claim_transfer(text), public.ias_request_by_code(text),
   public.ias_request(uuid), public.ias_decide(uuid, boolean) to authenticated;
+
+-- Migration 3 (ias_decide_full_profile): login returns the whole profile needed for applications
+create or replace function public.ias_decide(p_id uuid, p_approve boolean) returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare r public.ias_requests; a public.ias_accounts; pr public.ias_profiles; res jsonb; k text; src jsonb;
+begin
+  select * into a from public.ias_accounts where device_uid = auth.uid() and status = 'active';
+  if not found then raise exception 'no active account on this device'; end if;
+  select * into r from public.ias_requests where id = p_id and status = 'pending' for update;
+  if not found then return null; end if;
+  if r.expires_at < now() then update public.ias_requests set status = 'expired' where id = p_id; return jsonb_build_object('status', 'expired'); end if;
+  if not p_approve then update public.ias_requests set status = 'rejected', account_id = a.id, decided_at = now() where id = p_id; return jsonb_build_object('status', 'rejected'); end if;
+  select * into pr from public.ias_profiles where account_id = a.id;
+  src := jsonb_build_object('id_no', a.id_no, 'name_en', a.name_en, 'name_local', a.name_local, 'sex', a.sex, 'dob', a.dob,
+                            'pob', a.pob, 'nationality', a.nationality, 'res_status', a.res_status, 'email', coalesce(nullif(pr.email, ''), a.email),
+                            'email2', pr.email2, 'mobile', pr.mobile, 'home_tel', pr.home_tel, 'office_tel', pr.office_tel, 'prefix', pr.prefix, 'education', pr.education,
+                            'marital', pr.marital, 'postal_address', pr.postal_address, 'residential_address', pr.residential_address, 'billing_address', pr.billing_address);
+  res := jsonb_build_object('sub', left(encode(digest(a.id_no || '|' || r.client, 'sha256'), 'hex'), 32), 'name_en', a.name_en, 'version', a.version);
+  if r.purpose in ('login', 'eme') then
+    foreach k in array r.scope loop
+      if src ? k then res := res || jsonb_build_object(k, coalesce(src->>k, '')); end if;
+    end loop;
+  elsif r.purpose = 'sign' then
+    if a.version <> 'plus' then raise exception 'digital signing requires iAM Smart+'; end if;
+    res := res || jsonb_build_object('signature', encode(digest(a.id::text || '|' || r.digest || '|' || now()::text, 'sha256'), 'hex'),
+                                     'signed_at', now(), 'cert', 'iAM Smart-Cert ' || upper(left(a.id::text, 8)));
+  end if;
+  update public.ias_requests set status = 'approved', account_id = a.id, result = res, decided_at = now() where id = p_id;
+  insert into public.ias_logs (account_id, action, client) values (a.id, r.purpose, r.client_name);
+  return jsonb_build_object('status', 'approved');
+end $$;

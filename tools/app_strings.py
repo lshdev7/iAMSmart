@@ -179,6 +179,7 @@ S = {
     "reject": ("Reject", "거절", "拒絕"), "approve_pin": ("Enter your password to approve", "승인하려면 비밀번호를 입력하세요", "請輸入密碼以批准"),
     "auth_ok": ("Completed. You may return to {c}.", "완료되었습니다. {c}(으)로 돌아가세요.", "已完成。你可返回{c}。"), "auth_rejected": ("You have rejected the request.", "요청을 거절했습니다.", "你已拒絕請求。"),
     "back_home": ("Back to Home", "홈으로", "返回主頁"),
+    "auth_closing": ("This window will close automatically.", "이 창은 자동으로 닫힙니다.", "此視窗會自動關閉。"),
     # inbox messages (stand in for emails until a mail server is connected)
     "mail_welcome_title": ("Welcome to “iAM Smart”", "\"iAM Smart\"에 오신 것을 환영합니다", "歡迎使用「智方便」"),
     "mail_welcome_body": ("Your account has been registered and the identity card {id} has been issued. Please verify your email address in Account Information.", "가입이 완료되어 신분증 {id}이(가) 발급되었습니다. 계정 정보에서 이메일 주소를 인증하세요.", "你的戶口已完成登記，並已獲發身份證{id}。請在戶口資料內驗證電郵地址。"),

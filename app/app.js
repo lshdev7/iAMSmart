@@ -660,8 +660,10 @@
   };
 
   /* ------------------------------------------------------------------ requests from online services */
-  var SCOPE_LABEL = { id_no: "id_no", name_en: "name_en", name_local: "name_local", sex: "sex", dob: "dob", email: "email", mobile: "eme_mobile", home_tel: "eme_home_tel",
-                      office_tel: "eme_office_tel", prefix: "eme_prefix", education: "eme_education", marital: "eme_marital", postal_address: "eme_postal_address", residential_address: "eme_residential_address" };
+  var SCOPE_LABEL = { id_no: "id_no", name_en: "name_en", name_local: "name_local", sex: "sex", dob: "dob", pob: "pob", nationality: "nationality", res_status: "res_status",
+                      email: "email", email2: "eme_email2", mobile: "eme_mobile", home_tel: "eme_home_tel", office_tel: "eme_office_tel", prefix: "eme_prefix",
+                      education: "eme_education", marital: "eme_marital", postal_address: "eme_postal_address", residential_address: "eme_residential_address",
+                      billing_address: "eme_billing_address" };
   PAGES.auth = function (id) {
     IAS.request(id).then(function (r) {
       var m = screen(T("auth_title"), { back: "/home" });
@@ -683,6 +685,11 @@
       confirmAuth(box, function () { IAS.decide(r.id, ME.id, true).then(function (x) { done(x && x.status === "approved"); }); }, T("approve_pin"));
       function done(okay) {
         var m2 = screen(T("auth_title"), {});
+        var closable = !!window.opener || history.length <= 2;
+        if (closable) {
+          m2.appendChild(el("p", { cls: "hint", text: T("auth_closing") }));
+          setTimeout(function () { try { window.close(); } catch (e) { /* ignore */ } }, 1500);
+        }
         m2.appendChild(el("div", { cls: "notice " + (okay ? "ok" : "bad") }, [el("div", { cls: "tick", text: okay ? "✓" : "✕" }), el("h2", { text: okay ? T("auth_ok", { c: r.client_name }) : T("auth_rejected") })]));
         m2.appendChild(btn(T("back_home"), function () { go("/home"); }, "big"));
       }
