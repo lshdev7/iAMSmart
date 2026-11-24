@@ -220,12 +220,9 @@
       pinPad(m, function (pin, e2) {
         var id = normId(pid.value);
         if (!id) { err.textContent = T("err_id"); return; }
-        IAS.findByIdNo(id).then(function (p) {
-          if (!p) { err.textContent = T("parent_none"); return; }
-          return IAS.verifyPin(p.id, pin).then(function (r) {
-            if (!r.ok) { e2.textContent = T("pin_wrong", { n: r.remaining }); return; }
-            R.parent_id = p.id; toast(T("parent_ok")); regGo("decl");
-          });
+        IAS.parentConsent(id, pin).then(function (pid) {
+          if (!pid) { e2.textContent = T("parent_bad"); return; }
+          R.parent_id = pid; toast(T("parent_ok")); regGo("decl");
         });
       }, { label: T("parent_pin") });
     },
@@ -343,7 +340,10 @@
         IAS.register({ version: R.plus ? "plus" : "basic", id_no: R.data.id_no, name_en: R.data.name_en, name_local: R.data.name_local, sex: R.data.sex, dob: R.data.dob,
                        email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files })
           .then(function (acc) { ME = acc; return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body")); })
-          .then(function () { R.pin = null; regGo("done"); }, function (x) { err.textContent = String(x && x.message || x); });
+          .then(function () { R.pin = null; regGo("done"); }, function (x) {
+            var msg = x && x.message === "already_registered" ? T("already_registered") : String(x && x.message || x);
+            err.textContent = msg; this.disabled = false;
+          }.bind(this));
       }, "big"));
     },
     done: function () {
@@ -649,7 +649,7 @@
           clearTimer();
           var m3 = screen(T("face_title"), { back: "/me" });
           camera(m3, "user", "face", function (blob) {
-            IAS.putFile(ME.id, "face_upgrade", blob).then(function () { return IAS.update(ME.id, { version: "plus" }); }).then(function (a) {
+            IAS.putFile(ME.id, "face_upgrade", blob).then(function () { return IAS.upgrade(ME.id); }).then(function (a) {
               ME = a; return IAS.notify(ME.id, T("mail_plus_title"), T("mail_plus_body"));
             }).then(function () {
               var m4 = screen(T("upgrade"), {});

@@ -42,6 +42,8 @@ S = {
     "parent_id": ("Parent / guardian’s identity card number", "부모·보호자의 신분증 번호", "父母／監護人的身份證號碼"), "parent_pin": ("Parent / guardian’s password", "부모·보호자의 비밀번호", "父母／監護人的密碼"),
     "parent_none": ("No “iAM Smart” account was found for this identity card number.", "이 신분증 번호의 \"iAM Smart\" 계정이 없습니다.", "找不到此身份證號碼的「智方便」戶口。"),
     "parent_ok": ("Consent received", "동의를 받았습니다", "已收到同意"),
+    "parent_bad": ("The identity card number or password of the parent / guardian is incorrect.", "부모·보호자의 신분증 번호나 비밀번호가 맞지 않습니다.", "父母／監護人的身份證號碼或密碼不正確。"),
+    "already_registered": ("This identity card is already registered. To use it on this phone, choose “Rebind / Transfer account”.", "이미 가입된 신분증입니다. 이 휴대폰에서 쓰려면 \"계정 다시 연결·이전\"을 이용하세요.", "此身份證已登記。如要在此手機使用，請選擇「重新綁定／轉移戶口」。"),
     "declaration": ("Declaration of the Applicant", "신청인 선언", "申請人聲明"),
     "declaration_html": ("<p>I declare that I am the holder of the identity card used for this registration and that the information provided is true and correct.</p><p>I understand that my identity card data and facial image will be used to verify my identity, and that the personal data collected will be used for the operation of “iAM Smart” in accordance with the Personal Data (Privacy) Ordinance.</p><p>I will keep my phone and password safe and will not let other persons use my “iAM Smart” account.</p>",
                          "<p>본인은 이 가입에 쓰는 신분증의 소지자이며 제공한 정보가 사실이고 정확함을 선언합니다.</p><p>신분증 정보와 얼굴 이미지가 본인 확인에 쓰이고, 수집된 개인정보가 개인정보(사생활)조례에 따라 \"iAM Smart\" 운영에 쓰인다는 것을 이해합니다.</p><p>휴대폰과 비밀번호를 안전하게 보관하고 다른 사람이 내 \"iAM Smart\" 계정을 쓰지 않도록 하겠습니다.</p>",

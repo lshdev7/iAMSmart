@@ -79,7 +79,7 @@ alter table public.ias_logs      enable row level security;
 alter table public.ias_inbox     enable row level security;
 alter table public.ias_transfers enable row level security;
 
-create or replace function public.ias_my_account() returns uuid language sql stable security definer set search_path = public as
+create or replace function public.ias_my_account() returns uuid language sql stable security definer set search_path = public, extensions as
 $$ select id from public.ias_accounts where device_uid = auth.uid() limit 1 $$;
 
 create policy ias_acc_select on public.ias_accounts for select using (device_uid = auth.uid());
@@ -95,16 +95,19 @@ create policy ias_acc_delete on public.ias_accounts for delete using (device_uid
 revoke all on public.ias_accounts from anon, authenticated;
 grant select (id, device_uid, version, status, id_no, name_en, name_local, sex, dob, email, email_verified, pin_fail, parent_id,
               credential_id, login_method, auto_logout, created_at, pin_changed_at, suspended_at) on public.ias_accounts to authenticated;
-grant update (email, email_verified, login_method, auto_logout, credential_id, status, suspended_at, version) on public.ias_accounts to authenticated;
+grant update (email, email_verified, login_method, auto_logout, credential_id) on public.ias_accounts to authenticated;   -- status / version only via functions
 grant delete on public.ias_accounts to authenticated;
 revoke all on public.ias_requests, public.ias_transfers from anon, authenticated;
 
 -- ------------------------------------------------------------------ functions used by the app (authenticated anonymous device)
-create or replace function public.ias_register(p jsonb) returns uuid language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_register(p jsonb) returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'not signed in'; end if;
-  delete from public.ias_accounts where id_no = p->>'id_no';          -- re-registration replaces the old account
+  -- an existing valid account can only be moved with "rebind" (password); an invalid one may be registered again
+  if exists (select 1 from public.ias_accounts where id_no = p->>'id_no' and status <> 'invalid') then raise exception 'already_registered'; end if;
+  delete from public.ias_accounts where id_no = p->>'id_no';
+  delete from public.ias_accounts where device_uid = auth.uid();          -- one account per phone
   insert into public.ias_accounts (device_uid, version, id_no, name_en, name_local, sex, dob, email, pin_hash, parent_id, credential_id, login_method)
   values (auth.uid(), coalesce(p->>'version', 'basic'), p->>'id_no', p->>'name_en', coalesce(p->>'name_local', ''), p->>'sex', (p->>'dob')::date,
           coalesce(p->>'email', ''), crypt(p->>'pin', gen_salt('bf')), nullif(p->>'parent_id', '')::uuid, p->>'credential_id',
@@ -115,7 +118,7 @@ begin
   return v_id;
 end $$;
 
-create or replace function public.ias_verify_pin(p_account uuid, p_pin text) returns jsonb language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_verify_pin(p_account uuid, p_pin text) returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare a public.ias_accounts; v_max int := 10;
 begin
   select * into a from public.ias_accounts where id = p_account and device_uid = auth.uid();
@@ -129,13 +132,33 @@ begin
   return jsonb_build_object('ok', false, 'invalid', a.status = 'invalid', 'remaining', greatest(0, v_max - a.pin_fail));
 end $$;
 
-create or replace function public.ias_set_pin(p_account uuid, p_pin text) returns void language sql security definer set search_path = public as
+create or replace function public.ias_set_pin(p_account uuid, p_pin text) returns void language sql security definer set search_path = public, extensions as
 $$ update public.ias_accounts set pin_hash = crypt(p_pin, gen_salt('bf')), pin_fail = 0, pin_changed_at = now() where id = p_account and device_uid = auth.uid() $$;
 
-create or replace function public.ias_find_parent(p_id_no text) returns uuid language sql stable security definer set search_path = public as
-$$ select id from public.ias_accounts where id_no = p_id_no and status = 'active' limit 1 $$;
+-- consent of parent / guardian: identity card number + password checked together (no lookup of who is registered)
+create or replace function public.ias_parent_consent(p_id_no text, p_pin text) returns uuid language plpgsql security definer set search_path = public, extensions as $$
+declare a public.ias_accounts;
+begin
+  select * into a from public.ias_accounts where id_no = p_id_no and status = 'active';
+  if not found then return null; end if;
+  if a.pin_hash <> crypt(p_pin, a.pin_hash) then
+    update public.ias_accounts set pin_fail = pin_fail + 1, status = case when pin_fail + 1 >= 10 then 'invalid' else status end where id = a.id;
+    return null;
+  end if;
+  update public.ias_accounts set pin_fail = 0 where id = a.id;
+  return a.id;
+end $$;
 
-create or replace function public.ias_rebind(p_id_no text, p_pin text) returns uuid language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_set_status(p_status text) returns void language plpgsql security definer set search_path = public, extensions as $$
+begin   -- active <-> suspended only; an invalid account cannot be revived
+  update public.ias_accounts set status = p_status, suspended_at = case when p_status = 'suspended' then now() end
+   where device_uid = auth.uid() and status in ('active', 'suspended') and p_status in ('active', 'suspended');
+end $$;
+
+create or replace function public.ias_upgrade() returns void language sql security definer set search_path = public, extensions as
+$$ update public.ias_accounts set version = 'plus' where device_uid = auth.uid() and status = 'active' $$;
+
+create or replace function public.ias_rebind(p_id_no text, p_pin text) returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare a public.ias_accounts;
 begin
   select * into a from public.ias_accounts where id_no = p_id_no;
@@ -149,7 +172,7 @@ begin
   return a.id;
 end $$;
 
-create or replace function public.ias_create_transfer(p_account uuid) returns text language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_create_transfer(p_account uuid) returns text language plpgsql security definer set search_path = public, extensions as $$
 declare v text := upper(substr(encode(gen_random_bytes(8), 'hex'), 1, 8));
 begin
   if not exists (select 1 from public.ias_accounts where id = p_account and device_uid = auth.uid()) then raise exception 'forbidden'; end if;
@@ -157,7 +180,7 @@ begin
   return v;
 end $$;
 
-create or replace function public.ias_claim_transfer(p_code text) returns uuid language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_claim_transfer(p_code text) returns uuid language plpgsql security definer set search_path = public, extensions as $$
 declare t public.ias_transfers;
 begin
   delete from public.ias_transfers where code = upper(p_code) and expires_at > now() returning * into t;
@@ -166,13 +189,13 @@ begin
   return t.account_id;
 end $$;
 
-create or replace function public.ias_request_by_code(p_code text) returns jsonb language sql stable security definer set search_path = public as
+create or replace function public.ias_request_by_code(p_code text) returns jsonb language sql stable security definer set search_path = public, extensions as
 $$ select to_jsonb(r) - 'secret' from public.ias_requests r where code = upper(p_code) and status = 'pending' and expires_at > now() limit 1 $$;
 
-create or replace function public.ias_request(p_id uuid) returns jsonb language sql stable security definer set search_path = public as
+create or replace function public.ias_request(p_id uuid) returns jsonb language sql stable security definer set search_path = public, extensions as
 $$ select to_jsonb(r) - 'secret' from public.ias_requests r where id = p_id $$;
 
-create or replace function public.ias_decide(p_id uuid, p_approve boolean) returns jsonb language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_decide(p_id uuid, p_approve boolean) returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare r public.ias_requests; a public.ias_accounts; pr public.ias_profiles; res jsonb; k text; src jsonb;
 begin
   select * into a from public.ias_accounts where device_uid = auth.uid() and status = 'active';
@@ -202,7 +225,7 @@ end $$;
 
 -- ------------------------------------------------------------------ functions used by online services (anonymous web pages)
 create or replace function public.ias_create_request(p_client text, p_client_name text, p_purpose text, p_scope text[], p_digest text default '')
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare r public.ias_requests;
 begin
   insert into public.ias_requests (code, secret, client, client_name, purpose, scope, digest)
@@ -211,7 +234,7 @@ begin
   return jsonb_build_object('id', r.id, 'code', r.code, 'secret', r.secret, 'expires_at', r.expires_at);
 end $$;
 
-create or replace function public.ias_poll(p_id uuid, p_secret text) returns jsonb language plpgsql security definer set search_path = public as $$
+create or replace function public.ias_poll(p_id uuid, p_secret text) returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare r public.ias_requests;
 begin
   select * into r from public.ias_requests where id = p_id and secret = p_secret;
@@ -220,11 +243,13 @@ begin
   return jsonb_build_object('status', r.status, 'result', case when r.status = 'approved' then r.result end);
 end $$;
 
-create or replace function public.ias_stats() returns jsonb language sql stable security definer set search_path = public as
+create or replace function public.ias_stats() returns jsonb language sql stable security definer set search_path = public, extensions as
 $$ select jsonb_build_object('regs', (select count(*) from public.ias_accounts), 'uses', (select count(*) from public.ias_logs)) $$;
 
+revoke execute on all functions in schema public from public, anon;
 grant execute on function public.ias_create_request(text, text, text, text[], text), public.ias_poll(uuid, text), public.ias_stats() to anon, authenticated;
-grant execute on function public.ias_register(jsonb), public.ias_verify_pin(uuid, text), public.ias_set_pin(uuid, text), public.ias_find_parent(text),
+grant execute on function public.ias_register(jsonb), public.ias_verify_pin(uuid, text), public.ias_set_pin(uuid, text), public.ias_parent_consent(text, text),
+  public.ias_set_status(text), public.ias_upgrade(), public.ias_my_account(),
   public.ias_rebind(text, text), public.ias_create_transfer(uuid), public.ias_claim_transfer(text), public.ias_request_by_code(text),
   public.ias_request(uuid), public.ias_decide(uuid, boolean) to authenticated;
 
