@@ -1,0 +1,230 @@
+-- iAM Smart (Baekhyeon Hwarang SAR) – Supabase schema for lib/adapter-supabase.js
+-- Run in the SQL editor of the Supabase project. Then enable "Anonymous sign-ins" (Authentication > Providers)
+-- and create a private storage bucket named "ias-files".
+-- Model: every "iAM Smart" app installation signs in anonymously; the account row is bound to that auth user
+-- (device_uid). Online services (GovBHG, Immigration Department) are anonymous web pages: they create requests and
+-- poll them with a random secret through SECURITY DEFINER functions; they never read tables directly.
+
+create extension if not exists pgcrypto;
+
+create table if not exists public.ias_accounts (
+  id            uuid primary key default gen_random_uuid(),
+  device_uid    uuid not null,                         -- auth.uid() of the bound phone / browser
+  version       text not null default 'basic' check (version in ('basic', 'plus')),
+  status        text not null default 'active' check (status in ('active', 'suspended', 'invalid')),
+  id_no         text not null,
+  name_en       text not null,
+  name_local    text not null default '',
+  sex           text not null check (sex in ('M', 'F')),
+  dob           date not null,
+  email         text not null default '',
+  email_verified boolean not null default false,
+  pin_hash      text not null,                         -- crypt(pin, gen_salt('bf'))
+  pin_fail      int  not null default 0,
+  parent_id     uuid references public.ias_accounts(id) on delete set null,
+  credential_id text,                                  -- WebAuthn credential id (biometric login on the device)
+  login_method  text not null default 'pin',
+  auto_logout   int  not null default 5,
+  created_at    timestamptz not null default now(),
+  pin_changed_at timestamptz not null default now(),
+  suspended_at  timestamptz
+);
+create unique index if not exists ias_accounts_id_no on public.ias_accounts (id_no);
+create index if not exists ias_accounts_device on public.ias_accounts (device_uid);
+
+create table if not exists public.ias_profiles (            -- "e-ME" profile
+  account_id uuid primary key references public.ias_accounts(id) on delete cascade,
+  email text default '', email2 text default '', mobile text default '', home_tel text default '', office_tel text default '',
+  prefix text default '', education text default '', marital text default '',
+  postal_address text default '', residential_address text default '', billing_address text default '',
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.ias_requests (            -- login / e-ME form filling / signing requests from online services
+  id          uuid primary key default gen_random_uuid(),
+  code        text not null,
+  secret      text not null,
+  client      text not null,
+  client_name text not null,
+  purpose     text not null check (purpose in ('login', 'eme', 'sign')),
+  scope       text[] not null default '{}',
+  digest      text not null default '',
+  status      text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'expired')),
+  account_id  uuid references public.ias_accounts(id) on delete set null,
+  result      jsonb,
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz not null default now() + interval '90 seconds',
+  decided_at  timestamptz
+);
+create index if not exists ias_requests_code on public.ias_requests (code) where status = 'pending';
+
+create table if not exists public.ias_logs (
+  n bigserial primary key, account_id uuid references public.ias_accounts(id) on delete cascade,
+  action text not null, client text not null default '', at timestamptz not null default now()
+);
+create table if not exists public.ias_inbox (
+  n bigserial primary key, account_id uuid references public.ias_accounts(id) on delete cascade,
+  title text not null, body text not null default '', read boolean not null default false, at timestamptz not null default now()
+);
+create table if not exists public.ias_transfers (
+  code text primary key, account_id uuid not null references public.ias_accounts(id) on delete cascade,
+  expires_at timestamptz not null default now() + interval '10 minutes'
+);
+
+-- ------------------------------------------------------------------ row level security: the app sees only its own account
+alter table public.ias_accounts  enable row level security;
+alter table public.ias_profiles  enable row level security;
+alter table public.ias_requests  enable row level security;
+alter table public.ias_logs      enable row level security;
+alter table public.ias_inbox     enable row level security;
+alter table public.ias_transfers enable row level security;
+
+create or replace function public.ias_my_account() returns uuid language sql stable security definer set search_path = public as
+$$ select id from public.ias_accounts where device_uid = auth.uid() limit 1 $$;
+
+create policy ias_acc_select on public.ias_accounts for select using (device_uid = auth.uid());
+create policy ias_acc_update on public.ias_accounts for update using (device_uid = auth.uid()) with check (device_uid = auth.uid());
+create policy ias_prof_all   on public.ias_profiles for all using (account_id = public.ias_my_account()) with check (account_id = public.ias_my_account());
+create policy ias_logs_sel   on public.ias_logs for select using (account_id = public.ias_my_account());
+create policy ias_inbox_all  on public.ias_inbox for all using (account_id = public.ias_my_account()) with check (account_id = public.ias_my_account());
+-- ias_requests / ias_transfers: no direct access; functions below only.
+
+create policy ias_acc_delete on public.ias_accounts for delete using (device_uid = auth.uid());
+
+-- pin_hash must never leave the database: column-level grants only
+revoke all on public.ias_accounts from anon, authenticated;
+grant select (id, device_uid, version, status, id_no, name_en, name_local, sex, dob, email, email_verified, pin_fail, parent_id,
+              credential_id, login_method, auto_logout, created_at, pin_changed_at, suspended_at) on public.ias_accounts to authenticated;
+grant update (email, email_verified, login_method, auto_logout, credential_id, status, suspended_at, version) on public.ias_accounts to authenticated;
+grant delete on public.ias_accounts to authenticated;
+revoke all on public.ias_requests, public.ias_transfers from anon, authenticated;
+
+-- ------------------------------------------------------------------ functions used by the app (authenticated anonymous device)
+create or replace function public.ias_register(p jsonb) returns uuid language plpgsql security definer set search_path = public as $$
+declare v_id uuid;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  delete from public.ias_accounts where id_no = p->>'id_no';          -- re-registration replaces the old account
+  insert into public.ias_accounts (device_uid, version, id_no, name_en, name_local, sex, dob, email, pin_hash, parent_id, credential_id, login_method)
+  values (auth.uid(), coalesce(p->>'version', 'basic'), p->>'id_no', p->>'name_en', coalesce(p->>'name_local', ''), p->>'sex', (p->>'dob')::date,
+          coalesce(p->>'email', ''), crypt(p->>'pin', gen_salt('bf')), nullif(p->>'parent_id', '')::uuid, p->>'credential_id',
+          case when coalesce(p->>'credential_id', '') <> '' then 'bio' else 'pin' end)
+  returning id into v_id;
+  insert into public.ias_profiles (account_id, email) values (v_id, coalesce(p->>'email', ''));
+  insert into public.ias_logs (account_id, action, client) values (v_id, 'register', 'iAM Smart');
+  return v_id;
+end $$;
+
+create or replace function public.ias_verify_pin(p_account uuid, p_pin text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare a public.ias_accounts; v_max int := 10;
+begin
+  select * into a from public.ias_accounts where id = p_account and device_uid = auth.uid();
+  if not found or a.status = 'invalid' then return jsonb_build_object('ok', false, 'invalid', true, 'remaining', 0); end if;
+  if a.pin_hash = crypt(p_pin, a.pin_hash) then
+    update public.ias_accounts set pin_fail = 0 where id = a.id;
+    return jsonb_build_object('ok', true, 'remaining', v_max);
+  end if;
+  update public.ias_accounts set pin_fail = pin_fail + 1, status = case when pin_fail + 1 >= v_max then 'invalid' else status end where id = a.id
+  returning * into a;
+  return jsonb_build_object('ok', false, 'invalid', a.status = 'invalid', 'remaining', greatest(0, v_max - a.pin_fail));
+end $$;
+
+create or replace function public.ias_set_pin(p_account uuid, p_pin text) returns void language sql security definer set search_path = public as
+$$ update public.ias_accounts set pin_hash = crypt(p_pin, gen_salt('bf')), pin_fail = 0, pin_changed_at = now() where id = p_account and device_uid = auth.uid() $$;
+
+create or replace function public.ias_find_parent(p_id_no text) returns uuid language sql stable security definer set search_path = public as
+$$ select id from public.ias_accounts where id_no = p_id_no and status = 'active' limit 1 $$;
+
+create or replace function public.ias_rebind(p_id_no text, p_pin text) returns uuid language plpgsql security definer set search_path = public as $$
+declare a public.ias_accounts;
+begin
+  select * into a from public.ias_accounts where id_no = p_id_no;
+  if not found or a.pin_hash <> crypt(p_pin, a.pin_hash) then return null; end if;
+  update public.ias_accounts set device_uid = auth.uid(), status = 'active', suspended_at = null where id = a.id;
+  insert into public.ias_logs (account_id, action, client) values (a.id, 'rebind', 'iAM Smart');
+  return a.id;
+end $$;
+
+create or replace function public.ias_create_transfer(p_account uuid) returns text language plpgsql security definer set search_path = public as $$
+declare v text := upper(substr(encode(gen_random_bytes(8), 'hex'), 1, 8));
+begin
+  if not exists (select 1 from public.ias_accounts where id = p_account and device_uid = auth.uid()) then raise exception 'forbidden'; end if;
+  insert into public.ias_transfers (code, account_id) values (v, p_account);
+  return v;
+end $$;
+
+create or replace function public.ias_claim_transfer(p_code text) returns uuid language plpgsql security definer set search_path = public as $$
+declare t public.ias_transfers;
+begin
+  delete from public.ias_transfers where code = upper(p_code) and expires_at > now() returning * into t;
+  if not found then return null; end if;
+  update public.ias_accounts set device_uid = auth.uid() where id = t.account_id;
+  return t.account_id;
+end $$;
+
+create or replace function public.ias_request_by_code(p_code text) returns jsonb language sql stable security definer set search_path = public as
+$$ select to_jsonb(r) - 'secret' from public.ias_requests r where code = upper(p_code) and status = 'pending' and expires_at > now() limit 1 $$;
+
+create or replace function public.ias_request(p_id uuid) returns jsonb language sql stable security definer set search_path = public as
+$$ select to_jsonb(r) - 'secret' from public.ias_requests r where id = p_id $$;
+
+create or replace function public.ias_decide(p_id uuid, p_approve boolean) returns jsonb language plpgsql security definer set search_path = public as $$
+declare r public.ias_requests; a public.ias_accounts; pr public.ias_profiles; res jsonb; k text; src jsonb;
+begin
+  select * into a from public.ias_accounts where device_uid = auth.uid() and status = 'active';
+  if not found then raise exception 'no active account on this device'; end if;
+  select * into r from public.ias_requests where id = p_id and status = 'pending' for update;
+  if not found then return null; end if;
+  if r.expires_at < now() then update public.ias_requests set status = 'expired' where id = p_id; return jsonb_build_object('status', 'expired'); end if;
+  if not p_approve then update public.ias_requests set status = 'rejected', account_id = a.id, decided_at = now() where id = p_id; return jsonb_build_object('status', 'rejected'); end if;
+  select * into pr from public.ias_profiles where account_id = a.id;
+  src := jsonb_build_object('id_no', a.id_no, 'name_en', a.name_en, 'name_local', a.name_local, 'sex', a.sex, 'dob', a.dob, 'email', coalesce(nullif(pr.email, ''), a.email),
+                            'mobile', pr.mobile, 'home_tel', pr.home_tel, 'office_tel', pr.office_tel, 'prefix', pr.prefix, 'education', pr.education,
+                            'marital', pr.marital, 'postal_address', pr.postal_address, 'residential_address', pr.residential_address);
+  res := jsonb_build_object('sub', left(encode(digest(a.id_no || '|' || r.client, 'sha256'), 'hex'), 32), 'name_en', a.name_en, 'version', a.version);
+  if r.purpose in ('login', 'eme') then
+    foreach k in array r.scope loop
+      if src ? k then res := res || jsonb_build_object(k, coalesce(src->>k, '')); end if;
+    end loop;
+  elsif r.purpose = 'sign' then
+    if a.version <> 'plus' then raise exception 'digital signing requires iAM Smart+'; end if;
+    res := res || jsonb_build_object('signature', encode(digest(a.id::text || '|' || r.digest || '|' || now()::text, 'sha256'), 'hex'),
+                                     'signed_at', now(), 'cert', 'iAM Smart-Cert ' || upper(left(a.id::text, 8)));
+  end if;
+  update public.ias_requests set status = 'approved', account_id = a.id, result = res, decided_at = now() where id = p_id;
+  insert into public.ias_logs (account_id, action, client) values (a.id, r.purpose, r.client_name);
+  return jsonb_build_object('status', 'approved');
+end $$;
+
+-- ------------------------------------------------------------------ functions used by online services (anonymous web pages)
+create or replace function public.ias_create_request(p_client text, p_client_name text, p_purpose text, p_scope text[], p_digest text default '')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare r public.ias_requests;
+begin
+  insert into public.ias_requests (code, secret, client, client_name, purpose, scope, digest)
+  values (upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 6)), encode(gen_random_bytes(18), 'hex'), p_client, p_client_name, p_purpose, coalesce(p_scope, '{}'), coalesce(p_digest, ''))
+  returning * into r;
+  return jsonb_build_object('id', r.id, 'code', r.code, 'secret', r.secret, 'expires_at', r.expires_at);
+end $$;
+
+create or replace function public.ias_poll(p_id uuid, p_secret text) returns jsonb language plpgsql security definer set search_path = public as $$
+declare r public.ias_requests;
+begin
+  select * into r from public.ias_requests where id = p_id and secret = p_secret;
+  if not found then return jsonb_build_object('status', 'unknown'); end if;
+  if r.status = 'pending' and r.expires_at < now() then update public.ias_requests set status = 'expired' where id = p_id; r.status := 'expired'; end if;
+  return jsonb_build_object('status', r.status, 'result', case when r.status = 'approved' then r.result end);
+end $$;
+
+create or replace function public.ias_stats() returns jsonb language sql stable security definer set search_path = public as
+$$ select jsonb_build_object('regs', (select count(*) from public.ias_accounts), 'uses', (select count(*) from public.ias_logs)) $$;
+
+grant execute on function public.ias_create_request(text, text, text, text[], text), public.ias_poll(uuid, text), public.ias_stats() to anon, authenticated;
+grant execute on function public.ias_register(jsonb), public.ias_verify_pin(uuid, text), public.ias_set_pin(uuid, text), public.ias_find_parent(text),
+  public.ias_rebind(text, text), public.ias_create_transfer(uuid), public.ias_claim_transfer(text), public.ias_request_by_code(text),
+  public.ias_request(uuid), public.ias_decide(uuid, boolean) to authenticated;
+
+-- storage: private bucket "ias-files", objects stored as <account_id>/<kind>.jpg
+create policy ias_files_rw on storage.objects for all to authenticated
+  using (bucket_id = 'ias-files' and (storage.foldername(name))[1] = public.ias_my_account()::text)
+  with check (bucket_id = 'ias-files' and (storage.foldername(name))[1] = public.ias_my_account()::text);

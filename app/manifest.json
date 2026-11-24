@@ -1,0 +1,15 @@
+{
+ "name": "iAM Smart",
+ "short_name": "iAM Smart",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#f3f6f8",
+ "theme_color": "#2b8a83",
+ "icons": [
+  {
+   "src": "../assets/favicon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  }
+ ]
+}
