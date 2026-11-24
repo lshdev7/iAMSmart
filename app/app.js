@@ -63,7 +63,13 @@
     if (opts.lang) {
       var sel = el("select", { cls: "langsel", "aria-label": "Language" });
       [["en", "English"], ["ko", "한국어"], ["zh-hant", "繁體"], ["zh-hans", "简体"]].forEach(function (o) { var op = el("option", { value: o[0], text: o[1] }); if (o[0] === lang) op.selected = true; sel.appendChild(op); });
-      sel.addEventListener("change", function () { try { localStorage.setItem("ias-lang", sel.value); } catch (e) { /* ignore */ } location.reload(); });
+      sel.addEventListener("change", function () {
+        try { localStorage.setItem("ias-lang", sel.value); } catch (e) { /* ignore */ }
+        // the address may carry ?lang=… (links from the websites and login requests); replace it so the new choice wins
+        var q = location.search.replace(/^\?/, "").split("&").filter(function (x) { return x && !/^lang=/.test(x); });
+        q.push("lang=" + encodeURIComponent(sel.value));
+        location.replace(location.pathname + "?" + q.join("&") + location.hash);
+      });
       bar.appendChild(sel);
     }
     root.appendChild(bar);
