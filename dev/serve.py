@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Local server that reproduces the GitHub Pages layout of the three sites on one origin:
 
-    http://127.0.0.1:8800/ImaSmart/                -> this repository
+    http://127.0.0.1:8800/iAMSmart/                -> this repository
     http://127.0.0.1:8800/BHG/                         -> ../BHG_Homepage
     http://127.0.0.1:8800/bhg_Immigration_Department/  -> ../bhg_Immigration_Department
 
@@ -27,7 +27,7 @@ def site(name):
 
 
 MOUNTS = {
-    "/ImaSmart/": REPO,
+    "/iAMSmart/": REPO,
     "/BHG/": site("BHG_Homepage"),
     "/bhg_Immigration_Department/": site("bhg_Immigration_Department"),
 }
@@ -46,7 +46,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/", ""):
             self.send_response(302)
-            self.send_header("Location", "/ImaSmart/")
+            self.send_header("Location", "/iAMSmart/")
             self.end_headers()
             return
         return super().do_GET()
@@ -60,8 +60,8 @@ def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8800
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("127.0.0.1", port), functools.partial(Handler)) as httpd:
-        print("iAM Smart     http://127.0.0.1:%d/ImaSmart/" % port)
-        print("iAM Smart app http://127.0.0.1:%d/ImaSmart/app/" % port)
+        print("iAM Smart     http://127.0.0.1:%d/iAMSmart/" % port)
+        print("iAM Smart app http://127.0.0.1:%d/iAMSmart/app/" % port)
         print("GovBHG        http://127.0.0.1:%d/BHG/" % port)
         print("ImmD          http://127.0.0.1:%d/bhg_Immigration_Department/" % port)
         httpd.serve_forever()
