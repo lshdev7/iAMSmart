@@ -66,3 +66,7 @@ html,body{margin:0;background:#d9e3e8;color:var(--ink);font:16px/1.5 "Noto Sans 
 hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 .doc.idc{display:block;text-decoration:none;color:inherit;border-left:5px solid var(--teal)}
 .idcard .cardimg{width:100%;height:auto;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);margin:0 0 12px;display:block}
+.fsteps{list-style:none;display:flex;gap:6px;padding:0;margin:8px 0;justify-content:center;flex-wrap:wrap}
+.fsteps li{font-size:12px;padding:5px 10px;border-radius:14px;background:#e2e8eb;color:#58636a}
+.fsteps li.on{background:#fff3d6;color:#7a5600;font-weight:700}.fsteps li.done{background:var(--teal);color:#fff}.fsteps li.done::before{content:"✓ "}
+.cam.face.live .frame{border-style:solid}

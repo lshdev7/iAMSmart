@@ -380,3 +380,8 @@ begin
   insert into public.ias_logs (account_id, action, client) values (a.id, r.purpose, r.client_name);
   return jsonb_build_object('status', 'approved');
 end $$;
+
+-- Migration 4 (ias_face_verification) and 5 (ias_request_ttl_and_lookup): face descriptors (never readable by clients),
+-- same-person checks, one face = one account, rebind with password + face; requests valid for 180 seconds and
+-- looked up by code whatever their status. Applied to project BHG through the Supabase migrations of the same names;
+-- see supabase/migrations/ for the exact SQL.

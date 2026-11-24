@@ -27,7 +27,7 @@
     return e;
   }
   function go(h) { location.hash = h; }
-  function stopCams() { streams.forEach(function (s) { s.getTracks().forEach(function (t) { t.stop(); }); }); streams = []; }
+  function stopCams() { if (faceRun) { faceRun.stop(); faceRun = null; } streams.forEach(function (s) { s.getTracks().forEach(function (t) { t.stop(); }); }); streams = []; }
   function clearTimer() { if (timer) { clearInterval(timer); timer = null; } }
   function say(text) { if (R && R.voice && window.speechSynthesis) { try { var u = new SpeechSynthesisUtterance(text); u.lang = lang === "ko" ? "ko-KR" : lang.indexOf("zh") === 0 ? "zh-HK" : "en-GB"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { /* no voice */ } } }
   function mask(nameEn) {
@@ -124,6 +124,48 @@
       }).catch(function () { err.textContent = T("cam_unavailable"); });
     } else err.textContent = T("cam_unavailable");
     return { video: video, tip: tip };
+  }
+
+
+  /* ------------------------------------------------------------------ live facial identification (no photo files) */
+  var FACE_STEPS = ["front", "left", "right", "blink", "final"], faceRun = null;
+  function faceStep(main, onDone) {
+    var wrap = el("div", { cls: "cam face live" }), video = el("video", { playsinline: true, autoplay: true, muted: true, cls: "mirror" });
+    wrap.appendChild(video); wrap.appendChild(el("div", { cls: "frame" }));
+    var list = el("ol", { cls: "fsteps" }, FACE_STEPS.slice(0, 4).map(function (k) { return el("li", { text: T("fstep_" + k) }); }));
+    var tip = el("p", { cls: "camtip", text: T("face_loading") }), err = errBox(), again = el("div");
+    [wrap, tip, list, err, again].forEach(function (x) { main.appendChild(x); });
+    var last = "";
+    function fail(key) {
+      stopCams(); err.textContent = T(key); again.innerHTML = "";
+      again.appendChild(btn(T("face_retry"), function () { again.innerHTML = ""; err.textContent = ""; start(); }, "big"));
+    }
+    function start() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { fail("face_need_camera"); return; }
+      tip.textContent = T("face_loading");
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 960 } }, audio: false }).then(function (s) {
+        streams.push(s); video.srcObject = s;
+        return window.IASFace.load();
+      }).then(function () {
+        faceRun = window.IASFace.run(video, function (step, hint) {
+          var idx = FACE_STEPS.indexOf(step);
+          Array.prototype.forEach.call(list.children, function (li, i) { li.className = i < idx ? "done" : i === idx ? "on" : ""; });
+          var msg = hint !== "ok" ? T("fhint_" + hint) : T("fdo_" + step);
+          if (msg !== last) { tip.textContent = msg; if (hint === "ok") say(msg); last = msg; }
+        });
+        return faceRun.done;
+      }).then(function (res) {
+        faceRun = null; stopCams();
+        Array.prototype.forEach.call(list.children, function (li) { li.className = "done"; });
+        tip.textContent = T("face_ok");
+        onDone(res, fail);
+      }, function (e) {
+        faceRun = null;
+        if (e && e.message === "stopped") return;
+        fail(e && e.message === "timeout" ? "face_timeout" : (e && /NotAllowed|NotFound|Permission/i.test(e.name + e.message)) ? "face_need_camera" : "face_error");
+      });
+    }
+    start();
   }
 
   /* ------------------------------------------------------------------ boot / routing */
@@ -272,14 +314,7 @@
     face: function () {   // photograph for the identity card, with liveness prompts
       var m = screen(T("face_title"), { back: function () { regGo("info"); } }); steps(m, 5, TOTAL);
       m.appendChild(el("p", { cls: "hint", text: T("face_card_photo") }));
-      var acts = [T("face_look"), T("face_left"), T("face_right"), T("face_blink")], k = 0;
-      var cam = camera(m, "user", "face", function (blob) {
-        R.files.face = R.files.face || blob;
-        k++;
-        if (k < acts.length) { cam.tip.textContent = acts[k]; say(acts[k]); return; }
-        regGo("bio");
-      }, { tip: acts[0], shootText: T("face_next") });
-      say(acts[0]);
+      faceStep(m, function (res) { R.files.face = res.blob; R.face_desc = res.descriptor; setTimeout(function () { regGo("bio"); }, 600); });
     },
     bio: function () {
       var m = screen(T("bio_title"), { back: function () { regGo("face"); } }); steps(m, 6, TOTAL);
@@ -319,10 +354,11 @@
         var b = this; b.disabled = true;
         var d = R.data;
         IAS.register({ name_en: d.name_en, name_local: d.name_local, sex: d.sex, dob: d.dob, pob: d.pob, nationality: d.nationality, res_status: d.res_status,
-                       email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files })
+                       email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files, face_desc: R.face_desc })
           .then(function (acc) { ME = acc; return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body", { id: acc.id_no })); })
           .then(function () { R.pin = null; regGo("done"); }, function (x) {
-            err.textContent = x && x.message === "device_has_account" ? T("device_has_account") : String(x && x.message || x);
+            var k = x && x.message;
+            err.textContent = k === "device_has_account" ? T("device_has_account") : k === "face_already_registered" ? T("face_dup") : k === "face_required" ? T("face_error") : String(k || x);
             b.disabled = false;
           });
       }, "big"));
@@ -361,15 +397,27 @@
     m.appendChild(el("p", { cls: "hint", text: T("rebind_lead") }));
     var id = el("input", { type: "text", placeholder: "A123456(7)", autocomplete: "off" }), e2 = errBox();
     m.appendChild(field(T("id_no"), id)); m.appendChild(e2);
-    pinPad(m, function (pin, e3) {
+    pinPad(m, function (pin) {
       var n = normId(id.value); if (!n) { e2.textContent = T("err_id"); return; }
-      IAS.rebind(n, pin).then(function (a) { if (!a) { e3.textContent = T("rebind_bad"); return; } ME = a; UNLOCKED = true; ACT = Date.now(); toast(T("rebind_ok")); go("/home"); });
+      var m2 = screen(T("rebind_title"), { back: "/rebind" });
+      m2.appendChild(el("p", { cls: "lead", text: T("rebind_face") }));
+      faceStep(m2, function (res, fail) {
+        IAS.rebind(n, pin, res.descriptor).then(function (a) {
+          if (!a) { fail("rebind_bad"); return; }
+          ME = a; UNLOCKED = true; ACT = Date.now(); toast(T("rebind_ok")); go("/home");
+        });
+      });
     }, { label: T("enter_pin") });
   };
   PAGES.reactivate = function () {
     var m = screen(T("reactivate"), { back: "/" });
     m.appendChild(el("p", { cls: "lead", text: T("reactivate_lead") }));
-    camera(m, "user", "face", function () { IAS.reactivate(ME.id).then(function () { UNLOCKED = true; ACT = Date.now(); toast(T("reactivated")); go("/home"); }); }, { tip: T("face_look") });
+    faceStep(m, function (res, fail) {
+      IAS.faceCheck(res.descriptor).then(function (r) {
+        if (!r.match) { fail("face_mismatch"); return; }
+        return IAS.reactivate(ME.id).then(function () { UNLOCKED = true; ACT = Date.now(); toast(T("reactivated")); go("/home"); });
+      });
+    });
   };
   PAGES.home = function () {
     var m = screen(T("app_name"), { nav: "home", lang: true });
@@ -393,12 +441,20 @@
     m.appendChild(el("p", { cls: "lead", text: T("scan_lead") }));
     var wrap = el("div", { cls: "cam qr" }), video = el("video", { playsinline: true, autoplay: true, muted: true }), err = errBox();
     wrap.appendChild(video); wrap.appendChild(el("div", { cls: "frame" })); m.appendChild(wrap); m.appendChild(err);
-    function handle(text) {
-      var id = /#\/auth\/([\w-]+)/.exec(text) || /[?&]req=([\w-]+)/.exec(text);
-      if (id) { go("/auth/" + id[1]); return true; }
-      var c = /^[A-Z0-9]{6}$/.exec(String(text).trim().toUpperCase());
-      if (c) { IAS.requestByCode(c[0]).then(function (r) { if (r) go("/auth/" + r.id); else err.textContent = T("code_bad"); }); return true; }
-      err.textContent = T("qr_unknown"); return false;
+    function handle(raw) {
+      var text = String(raw || "").trim();
+      try { text = decodeURIComponent(text); } catch (e) { /* keep as read */ }
+      // the QR code carries the app address with the request number (a UUID); find it wherever it is
+      var id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(text);
+      if (id) { go("/auth/" + id[1].toLowerCase()); return true; }
+      var c = text.toUpperCase().replace(/[\s\-]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
+      if (/^[0-9A-Z]{6}$/.test(c)) {
+        err.textContent = "";
+        IAS.requestByCode(c).then(function (r) { if (r) go("/auth/" + r.id); else err.textContent = T("code_bad"); },
+                                  function () { err.textContent = T("load_failed"); });
+        return true;
+      }
+      err.textContent = T("qr_unknown") + (text ? " (" + text.slice(0, 80) + ")" : ""); return false;
     }
     if ("BarcodeDetector" in window && navigator.mediaDevices) {
       var det = new window.BarcodeDetector({ formats: ["qr_code"] });
@@ -647,15 +703,19 @@
     m.appendChild(btn(T("start"), function () {
       if (!cb.checked) { err.textContent = T("err_agree"); return; }
       var m3 = screen(T("face_title"), { back: "/me" });
-      camera(m3, "user", "face", function (blob) {
-        IAS.putFile(ME.id, "face_upgrade", blob).then(function () { return IAS.upgrade(ME.id); }).then(function (a) {
-          ME = a; return IAS.notify(ME.id, T("mail_plus_title"), T("mail_plus_body"));
-        }).then(function () {
-          var m4 = screen(T("upgrade"), {});
-          m4.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("upgrade_done") })]));
-          m4.appendChild(btn(T("start_using"), function () { go("/home"); }, "big"));
+      m3.appendChild(el("p", { cls: "hint", text: T("face_same_person") }));
+      faceStep(m3, function (res, fail) {
+        IAS.faceCheck(res.descriptor).then(function (r) {
+          if (!r.match) { fail("face_mismatch"); return; }
+          return IAS.putFile(ME.id, "face_upgrade", res.blob).then(function () { return IAS.upgrade(ME.id); }).then(function (a) {
+            ME = a; return IAS.notify(ME.id, T("mail_plus_title"), T("mail_plus_body"));
+          }).then(function () {
+            var m4 = screen(T("upgrade"), {});
+            m4.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("upgrade_done") })]));
+            m4.appendChild(btn(T("start_using"), function () { go("/home"); }, "big"));
+          });
         });
-      }, { tip: T("face_look") });
+      });
     }, "big"));
   };
 

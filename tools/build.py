@@ -187,6 +187,17 @@ def write_i18n():
                    "icons": [{"src": "../assets/favicon.svg", "sizes": "any", "type": "image/svg+xml"}]}, f, ensure_ascii=False, indent=1)
 
 
+def stamp_app():
+    """Add ?v=<build time> to the app's own scripts and stylesheet so that phones do not keep stale copies."""
+    import re
+    import time
+    p = os.path.join(ROOT, "app", "index.html")
+    s = open(p, encoding="utf-8").read()
+    v = str(int(time.time()))
+    s = re.sub(r'((?:src|href)="(?:\.\./lib/[^"?]+|\.\./assets/[^"?]+|i18n\.js|app\.js|app\.css|/bhg_Immigration_Department/assets/[^"?]+))(?:\?v=\d+)?"', r'\1?v=' + v + '"', s)
+    open(p, "w", encoding="utf-8").write(s)
+
+
 def main():
     pages = [""] + [s for _s, _t, kids in D.NAV for s, _x in kids] + [s for s, _t, kids in D.NAV if s] + ["download"]
     n = 0
@@ -212,6 +223,7 @@ def main():
                 'location.replace((l.indexOf("ko")===0?"ko":l==="zh-cn"||l==="zh-sg"||l==="zh-hans"?"zh-hans":l.indexOf("zh")===0?"zh-hant":"en")+"/");})();</script>'
                 '</head><body><a href="en/">iAM Smart</a></body></html>')
     write_i18n()
+    stamp_app()
     open(os.path.join(ROOT, ".nojekyll"), "w").close()
     print("built %d pages (%d per language) + app/i18n.js" % (n, len(pages)))
 
