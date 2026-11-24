@@ -67,7 +67,7 @@ P = {}
 P["about"] = [
     ("p", ("“iAM Smart” is a one-stop personalised digital services platform which enables Baekhyeon Hwarang residents to log in and use online services of the Government and public and private organisations with a single digital identity, by using their personal mobile phones.", "\"iAM Smart\"는 백현화랑 주민이 개인 휴대폰으로 하나의 디지털 신분을 사용해 정부와 공공·민간 기관의 온라인 서비스에 로그인하고 이용할 수 있게 하는 원스톱 맞춤형 디지털 서비스 플랫폼입니다.", "「智方便」是一站式個人化數碼服務平台，讓柏峴화랑居民以個人流動電話，憑單一數碼身份登入及使用政府和公私營機構的網上服務。")),
     ("h2", ("Target users", "이용 대상", "對象")),
-    ("p", ("All Baekhyeon Hwarang residents with a Baekhyeon Hwarang Identity Card and aged 11 or over are eligible. Residents aged 11 to 17 need the consent of a parent or guardian.", "백현화랑 신분증을 가진 만 11세 이상 모든 백현화랑 주민이 이용할 수 있습니다. 만 11~17세는 부모나 보호자의 동의가 필요합니다.", "所有持有柏峴화랑身份證並年滿11歲的柏峴화랑居民均可使用。11至17歲的居民須得到父母或監護人同意。")),
+    ("p", ("All Baekhyeon Hwarang residents aged 11 or over are eligible. A Baekhyeon Hwarang identity card and identity card number are issued on registration. Residents aged 11 to 17 need the consent of a parent or guardian.", "만 11세 이상 모든 백현화랑 주민이 이용할 수 있습니다. 가입하면 백현화랑 신분증과 신분증 번호가 발급됩니다. 만 11~17세는 부모나 보호자의 동의가 필요합니다.", "所有年滿11歲的柏峴화랑居民均可使用。登記時會獲發柏峴화랑身份證及身份證號碼。11至17歲的居民須得到父母或監護人同意。")),
     ("h2", ("Functions", "기능", "功能")),
     ("cards", [
         (("Authentication", "인증", "認證"), ("Use biometric or 6-digit password authentication to log in online services with a single identity.", "생체 인증이나 6자리 비밀번호로 하나의 신분으로 온라인 서비스에 로그인합니다.", "以生物認證或六位數字密碼，憑單一身份登入網上服務。"), "#e8710a"),
@@ -112,19 +112,23 @@ P["services"] = [
     ("services", None),
 ]
 P["reg"] = [
-    ("h2", ("Mobile App (“iAM Smart+”) – Aged 18 or over", "모바일 앱(\"iAM Smart+\") – 만 18세 이상", "流動應用程式（「智方便+」）– 18歲或以上")),
-    ("p", ("Please prepare: your Baekhyeon Hwarang Identity Card; a personal mobile phone with biometric authentication and the “iAM Smart” app; and an email address.", "준비물: 백현화랑 신분증, 생체 인증이 되고 \"iAM Smart\" 앱이 설치된 개인 휴대폰, 이메일 주소.", "請準備：柏峴화랑身份證；具備生物認證功能並已安裝「智方便」應用程式的個人流動電話；以及電郵地址。")),
-    ("steps", [("Open the “iAM Smart” mobile app", "\"iAM Smart\" 앱 열기", "開啟「智方便」流動應用程式"), ("Select “Start Quick Registration”", "\"빠른 가입 시작\" 선택", "選擇「開始快速登記」"), ("Select “Adult (Aged 18 or over)”", "\"성인(만 18세 이상)\" 선택", "選擇「成人（18歲或以上）」"),
-               ("Read and agree the “Declaration of the Applicant”", "\"신청인 선언\"을 읽고 동의", "閱讀並同意「申請人聲明」"), ("Select “Start”", "\"시작\" 선택", "選擇「開始」"), ("Capture the front side of the identity card", "신분증 앞면 촬영", "拍攝身份證正面"),
-               ("Read the chip of the identity card", "신분증 칩 읽기", "讀取身份證晶片"), ("Facial identification and liveness detection", "얼굴 인증 및 실물 확인", "面部識別及活體檢測"), ("Complete the phone’s built-in biometric authentication", "휴대폰 생체 인증", "完成手機內置生物認證"),
-               ("Set up a 6-digit “iAM Smart” password", "6자리 \"iAM Smart\" 비밀번호 설정", "設定六位數字「智方便」密碼"), ("Provide an email address", "이메일 주소 입력", "提供電郵地址"), ("“iAM Smart+” registration is completed", "\"iAM Smart+\" 가입 완료", "完成「智方便+」登記")]),
+    ("p", ("In the Baekhyeon Hwarang SAR, a Baekhyeon Hwarang identity card and identity card number are issued to you when you register for “iAM Smart”. You do not need to have an identity card before registering.", "백현화랑 특별행정구에서는 \"iAM Smart\"에 가입하면 백현화랑 신분증과 신분증 번호가 발급됩니다. 가입 전에 신분증이 있을 필요가 없습니다.", "在柏峴화랑特別行政區，登記「智方便」時便會獲發柏峴화랑身份證及身份證號碼。登記前無須持有身份證。")),
+    ("h2", ("Mobile App – Aged 18 or over", "모바일 앱 – 만 18세 이상", "流動應用程式 – 18歲或以上")),
+    ("p", ("Please prepare: a personal mobile phone with the “iAM Smart” app and an email address.", "준비물: \"iAM Smart\" 앱이 설치된 개인 휴대폰, 이메일 주소.", "請準備：已安裝「智方便」應用程式的個人流動電話及電郵地址。")),
+    ("steps", [("Open the “iAM Smart” mobile app and select “Register now”", "\"iAM Smart\" 앱을 열고 \"지금 가입\" 선택", "開啟「智方便」流動應用程式並選擇「立即登記」"), ("Select “Adult (Aged 18 or over)”", "\"성인(만 18세 이상)\" 선택", "選擇「成人（18歲或以上）」"),
+               ("Read and agree the “Declaration of the Applicant”", "\"신청인 선언\"을 읽고 동의", "閱讀並同意「申請人聲明」"), ("Choose voice navigation", "음성 안내 선택", "選擇語音導航"),
+               ("Enter your personal particulars (name, sex, date of birth, place of birth, nationality, residence status)", "인적사항 입력(성명, 성별, 생년월일, 출생지, 국적, 거주 자격)", "輸入個人資料（姓名、性別、出生日期、出生地點、國籍、居留身份）"),
+               ("Take the photograph for your identity card, with liveness checks", "실물 확인과 함께 신분증 사진 촬영", "拍攝身份證照片並進行活體檢測"), ("Set up the phone’s biometric authentication", "휴대폰 생체 인증 설정", "設定手機生物認證"),
+               ("Set up a 6-digit “iAM Smart” password", "6자리 \"iAM Smart\" 비밀번호 설정", "設定六位數字「智方便」密碼"), ("Provide an email address", "이메일 주소 입력", "提供電郵地址"),
+               ("Registration is completed – your identity card and identity card number are issued", "가입 완료 – 신분증과 신분증 번호 발급", "完成登記 – 獲發身份證及身份證號碼")]),
     ("h2", ("Mobile App – Aged 11 to 17", "모바일 앱 – 만 11~17세", "流動應用程式 – 11至17歲")),
-    ("p", ("The applicant should be accompanied by a parent or guardian who is an “iAM Smart” user. The parent or guardian logs in to his/her “iAM Smart” account and scans the QR code shown on the applicant’s phone to give consent. The remaining steps are the same as for adults.", "신청인은 \"iAM Smart\" 이용자인 부모나 보호자와 함께해야 합니다. 부모나 보호자가 본인 \"iAM Smart\" 계정에 로그인해 신청인 휴대폰에 표시된 QR 코드를 스캔하여 동의합니다. 나머지 단계는 성인과 같습니다.", "申請人須由屬「智方便」用戶的父母或監護人陪同。父母或監護人須登入其「智方便」戶口，掃描申請人手機上顯示的二維碼以表示同意，其餘步驟與成人相同。")),
+    ("p", ("The applicant should be accompanied by a parent or guardian who is an “iAM Smart” user. The parent or guardian confirms the consent with his/her identity card number and “iAM Smart” password. The remaining steps are the same as for adults.", "신청인은 \"iAM Smart\" 이용자인 부모나 보호자와 함께해야 합니다. 부모나 보호자가 본인의 신분증 번호와 \"iAM Smart\" 비밀번호로 동의를 확인합니다. 나머지 단계는 성인과 같습니다.", "申請人須由屬「智方便」用戶的父母或監護人陪同。父母或監護人須以其身份證號碼及「智方便」密碼確認同意，其餘步驟與成人相同。")),
     ("h2", ("Upgrade to “iAM Smart+” in the app", "앱에서 \"iAM Smart+\"로 업그레이드", "在應用程式內升級至「智方便+」")),
-    ("steps", [("Select “Upgrade to iAM Smart+”", "\"iAM Smart+로 업그레이드\" 선택", "選擇「升級至智方便+」"), ("Agree the declaration", "선언에 동의", "同意聲明"), ("Scan the identity card", "신분증 스캔", "掃描身份證"), ("Facial identification", "얼굴 인증", "面部識別"), ("“iAM Smart+” upgrade is completed", "\"iAM Smart+\" 업그레이드 완료", "完成升級至「智方便+」")]),
+    ("steps", [("Select “Upgrade to iAM Smart+”", "\"iAM Smart+로 업그레이드\" 선택", "選擇「升級至智方便+」"), ("Agree the declaration", "선언에 동의", "同意聲明"), ("Facial identification", "얼굴 인증", "面部識別"), ("“iAM Smart+” upgrade is completed", "\"iAM Smart+\" 업그레이드 완료", "完成升級至「智方便+」")]),
     ("h2", ("Self-registration kiosk / Registration service counter", "셀프 등록 키오스크·등록 창구", "自助登記站／登記服務櫃位")),
-    ("steps", [("Select the language and “Registration of iAM Smart”", "언어와 \"iAM Smart 가입\" 선택", "選擇語言及「登記智方便」"), ("Scan the kiosk QR code with the app", "앱으로 키오스크 QR 코드 스캔", "以應用程式掃描登記站二維碼"), ("Insert the identity card into the card slot", "신분증을 카드 슬롯에 넣기", "把身份證插入讀卡槽"),
-               ("Facial identification", "얼굴 인증", "面部識別"), ("Biometric authentication on the phone", "휴대폰 생체 인증", "手機生物認證"), ("Set up the 6-digit password and email address", "6자리 비밀번호와 이메일 설정", "設定六位數字密碼及電郵地址"), ("Registration is completed", "가입 완료", "完成登記")]),
+    ("steps", [("Select the language and “Registration of iAM Smart”", "언어와 \"iAM Smart 가입\" 선택", "選擇語言及「登記智方便」"), ("Scan the kiosk QR code with the app", "앱으로 키오스크 QR 코드 스캔", "以應用程式掃描登記站二維碼"),
+               ("Enter your personal particulars and take your photograph at the kiosk", "키오스크에서 인적사항 입력 및 사진 촬영", "在登記站輸入個人資料及拍照"), ("Set up the 6-digit password and email address on the phone", "휴대폰에서 6자리 비밀번호와 이메일 설정", "在手機設定六位數字密碼及電郵地址"),
+               ("Registration is completed – your identity card is printed at the kiosk", "가입 완료 – 키오스크에서 신분증 출력", "完成登記 – 在登記站列印身份證")]),
 ]
 P["reg-locations"] = [
     ("p", ("Self-registration kiosks and registration service counters are located at the following places.", "셀프 등록 키오스크와 등록 창구는 다음 장소에 있습니다.", "自助登記站及登記服務櫃位設於以下地點。")),
@@ -136,8 +140,9 @@ P["reg-locations"] = [
 ]
 FAQ = [
     (("General", "일반", "一般"), [
-        (("Who can register for “iAM Smart”?", "누가 \"iAM Smart\"에 가입할 수 있나요?", "誰可登記「智方便」？"), ("Baekhyeon Hwarang residents aged 11 or above holding a valid Baekhyeon Hwarang Identity Card. Residents aged 11 to 17 need the consent of a parent or guardian who is an “iAM Smart” user.", "유효한 백현화랑 신분증을 가진 만 11세 이상 백현화랑 주민입니다. 만 11~17세는 \"iAM Smart\" 이용자인 부모나 보호자의 동의가 필요합니다.", "持有有效柏峴화랑身份證並年滿11歲的柏峴화랑居民。11至17歲的居民須得到屬「智方便」用戶的父母或監護人同意。")),
-        (("Can I authorise another person to register on my behalf?", "다른 사람이 대신 가입할 수 있나요?", "我可否授權他人代為登記？"), ("No. Registration must be completed by the identity card holder himself/herself.", "아니요. 가입은 신분증 소지자 본인이 해야 합니다.", "不可以。登記必須由身份證持有人親自完成。")),
+        (("Who can register for “iAM Smart”?", "누가 \"iAM Smart\"에 가입할 수 있나요?", "誰可登記「智方便」？"), ("Baekhyeon Hwarang residents aged 11 or above. You do not need an identity card beforehand – a Baekhyeon Hwarang identity card and identity card number are issued when you register. Residents aged 11 to 17 need the consent of a parent or guardian who is an “iAM Smart” user.", "만 11세 이상 백현화랑 주민입니다. 미리 신분증이 있을 필요가 없으며, 가입하면 백현화랑 신분증과 신분증 번호가 발급됩니다. 만 11~17세는 \"iAM Smart\" 이용자인 부모나 보호자의 동의가 필요합니다.", "年滿11歲的柏峴화랑居民。登記前無須持有身份證，登記時便會獲發柏峴화랑身份證及身份證號碼。11至17歲的居民須得到屬「智方便」用戶的父母或監護人同意。")),
+        (("Can I authorise another person to register on my behalf?", "다른 사람이 대신 가입할 수 있나요?", "我可否授權他人代為登記？"), ("No. Registration must be completed by the applicant himself/herself, because the photograph taken during registration is printed on the identity card.", "아니요. 가입 중 촬영한 사진이 신분증에 인쇄되므로 본인이 직접 가입해야 합니다.", "不可以。由於登記時拍攝的照片會印在身份證上，登記必須由申請人親自完成。")),
+        (("Where can I find my identity card?", "신분증은 어디에서 볼 수 있나요?", "我在哪裏可以找到我的身份證？"), ("Your identity card is kept in “Me” > “Digital Document” in the app. You can view it and download it as a PDF.", "앱의 \"내 정보\" > \"전자 증명서\"에 신분증이 보관됩니다. 보거나 PDF로 내려받을 수 있습니다.", "你的身份證存放於應用程式的「我的」>「數碼文件」，可查看或下載為PDF。")),
         (("After using “iAM Smart”, can I still use the original login method of online services?", "\"iAM Smart\"를 쓴 뒤에도 각 서비스의 원래 로그인 방법을 쓸 수 있나요?", "使用「智方便」後，我仍可用原有方法登入網上服務嗎？"), ("Yes, you can still use the original login method of those online services.", "예, 해당 온라인 서비스의 원래 로그인 방법도 계속 쓸 수 있습니다.", "可以，你仍可使用該等網上服務原有的登入方法。")),
     ]),
     (("Login and password", "로그인과 비밀번호", "登入及密碼"), [

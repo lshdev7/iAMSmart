@@ -198,8 +198,8 @@
   }
 
   /* ------------------------------------------------------------------ registration */
-  var TOTAL = 12;
-  function regStart() { R = { age: null, voice: false, files: {}, plus: false, data: {} }; }
+  var TOTAL = 9;
+  function regStart() { R = { age: null, voice: false, files: {}, data: {} }; }
   var REG = {
     age: function () {
       regStart();
@@ -209,7 +209,7 @@
       m.appendChild(btn(T("minor"), function () { R.age = "minor"; regGo("parent"); }, "big sec"));
     },
     parent: function () {
-      var m = screen(T("parent_title"), { back: function () { regGo("age"); } }); steps(m, 2, TOTAL);
+      var m = screen(T("parent_title"), { back: function () { regGo("age"); } }); steps(m, 1, TOTAL);
       m.appendChild(el("p", { cls: "lead", text: T("parent_lead") }));
       var code = Math.random().toString(36).slice(2, 8).toUpperCase();
       m.appendChild(el("div", { cls: "qrbox" }, [qrCanvas("IASPARENT|" + code, 200), el("p", { cls: "code", text: code })]));
@@ -227,7 +227,7 @@
       }, { label: T("parent_pin") });
     },
     decl: function () {
-      var m = screen(T("declaration"), { back: function () { regGo("age"); } }); steps(m, 3, TOTAL);
+      var m = screen(T("declaration"), { back: function () { regGo("age"); } }); steps(m, 2, TOTAL);
       m.appendChild(el("div", { cls: "scroll", html: T("declaration_html") }));
       var cb = el("input", { type: "checkbox" }), err = errBox();
       m.appendChild(el("label", { cls: "chk" }, [cb, el("span", { text: T("agree") })]));
@@ -235,32 +235,28 @@
       m.appendChild(btn(T("start"), function () { if (!cb.checked) { err.textContent = T("err_agree"); return; } regGo("voice"); }, "big"));
     },
     voice: function () {
-      var m = screen(T("voice_title"), { back: function () { regGo("decl"); } }); steps(m, 4, TOTAL);
+      var m = screen(T("voice_title"), { back: function () { regGo("decl"); } }); steps(m, 3, TOTAL);
       m.appendChild(el("p", { cls: "lead", text: T("voice_lead") }));
-      m.appendChild(btn(T("voice_on"), function () { R.voice = true; regGo("card"); }, "big"));
-      m.appendChild(btn(T("voice_off"), function () { R.voice = false; regGo("card"); }, "big sec"));
+      m.appendChild(btn(T("voice_on"), function () { R.voice = true; regGo("info"); }, "big"));
+      m.appendChild(btn(T("voice_off"), function () { R.voice = false; regGo("info"); }, "big sec"));
     },
-    card: function () {
-      var m = screen(T("scan_card"), { back: function () { regGo("voice"); } }); steps(m, 5, TOTAL);
-      say(T("scan_card_tip"));
-      camera(m, "environment", "card", function (blob) { R.files.card = blob; regGo("cardinfo"); }, { tip: T("scan_card_tip") });
-    },
-    cardinfo: function () {
-      var m = screen(T("card_info"), { back: function () { regGo("card"); } }); steps(m, 6, TOTAL);
-      m.appendChild(el("p", { cls: "lead", text: T("card_info_lead") }));
+    info: function () {   // personal particulars; the identity card number is issued after registration
+      var m = screen(T("info_title"), { back: function () { regGo("voice"); } }); steps(m, 4, TOTAL);
+      m.appendChild(el("p", { cls: "lead", text: T("info_lead") }));
       var d = R.data;
-      var id = el("input", { type: "text", value: d.id_no || "", placeholder: "A123456(7)", autocomplete: "off" });
-      var sur = el("input", { type: "text", value: d.sur || "", placeholder: "CHOI", autocomplete: "off" });
-      var giv = el("input", { type: "text", value: d.giv || "", placeholder: "Yu Na", autocomplete: "off" });
+      var sur = el("input", { type: "text", value: d.sur || "", placeholder: "CHOI", autocomplete: "family-name" });
+      var giv = el("input", { type: "text", value: d.giv || "", placeholder: "Yu Na", autocomplete: "given-name" });
       var loc = el("input", { type: "text", value: d.name_local || "", autocomplete: "off" });
       var sex = el("select", {}, [el("option", { value: "", text: T("choose") }), el("option", { value: "M", text: T("male") }), el("option", { value: "F", text: T("female") })]); sex.value = d.sex || "";
       var dob = el("input", { type: "date", value: d.dob || "" });
+      var pob = el("select", {}, [el("option", { value: "BHG", text: T("pob_bhg") }), el("option", { value: "KR", text: T("pob_kr") }), el("option", { value: "XX", text: T("pob_other") })]); pob.value = d.pob || "BHG";
+      var nat = el("select", {}, [el("option", { value: "KOR", text: T("nat_kor") }), el("option", { value: "OTH", text: T("nat_other") })]); nat.value = d.nationality || "KOR";
+      var res = el("select", {}, ["A", "R", "U", "C"].map(function (k) { return el("option", { value: k, text: T("res_" + k) }); })); res.value = d.res_status || "A";
       var err = errBox();
-      [field(T("id_no"), id), field(T("surname"), sur), field(T("given"), giv), field(T("name_local"), loc), field(T("sex"), sex), field(T("dob"), dob)].forEach(function (f) { m.appendChild(f); });
+      [field(T("surname"), sur), field(T("given"), giv), field(T("name_local"), loc), field(T("sex"), sex), field(T("dob"), dob),
+       field(T("pob"), pob), field(T("nationality"), nat), field(T("res_status"), res)].forEach(function (f) { m.appendChild(f); });
       m.appendChild(err);
       m.appendChild(btn(T("next"), function () {
-        var n = normId(id.value);
-        if (!n) { err.textContent = T("err_id"); return; }
         if (!/^[A-Za-z][A-Za-z '\-]*$/.test(sur.value.trim()) || !/^[A-Za-z][A-Za-z '\-]*$/.test(giv.value.trim())) { err.textContent = T("err_name"); return; }
         if (!sex.value) { err.textContent = T("err_sex"); return; }
         if (!validDob(dob.value)) { err.textContent = T("err_dob"); return; }
@@ -268,41 +264,25 @@
         if (a < 11) { err.textContent = T("err_age11"); return; }
         if (R.age === "adult" && a < 18) { err.textContent = T("err_adult"); return; }
         if (R.age === "minor" && a >= 18) { err.textContent = T("err_minor"); return; }
-        R.data = { id_no: n, sur: sur.value.trim(), giv: giv.value.trim(), name_local: loc.value.trim(), sex: sex.value, dob: dob.value,
-                   name_en: sur.value.trim().toUpperCase() + ", " + giv.value.trim().toUpperCase() };
-        regGo("chip");
+        R.data = { sur: sur.value.trim(), giv: giv.value.trim(), name_local: loc.value.trim(), sex: sex.value, dob: dob.value, pob: pob.value,
+                   nationality: nat.value, res_status: res.value, name_en: sur.value.trim().toUpperCase() + ", " + giv.value.trim().toUpperCase() };
+        regGo("face");
       }, "big"));
     },
-    chip: function () {
-      var m = screen(T("chip_title"), { back: function () { regGo("cardinfo"); } }); steps(m, 7, TOTAL);
-      m.appendChild(el("p", { cls: "lead", text: T("chip_lead") }));
-      m.appendChild(el("div", { cls: "nfc" }, [el("div", { cls: "phone" }), el("div", { cls: "card" })]));
-      var bar = el("div", { cls: "sbar big" }, [el("i", { style: "width:0%" })]), st = el("p", { cls: "hint" });
-      m.appendChild(bar); m.appendChild(st);
-      m.appendChild(btn(T("chip_start"), function () {
-        say(T("chip_hold"));
-        var t0 = Date.now(), b = this; b.disabled = true; st.textContent = T("chip_hold");
-        timer = setInterval(function () {
-          var p = Math.min(1, (Date.now() - t0) / 8000); bar.firstChild.style.width = Math.round(p * 100) + "%";
-          if (p >= 1) { clearTimer(); R.plus = true; st.textContent = T("chip_done"); setTimeout(function () { regGo("face"); }, 700); }
-        }, 100);
-      }, "big"));
-      m.appendChild(btn(T("chip_skip"), function () { R.plus = false; regGo("face"); }, "link"));
-    },
-    face: function () {
-      var m = screen(T("face_title"), { back: function () { regGo("chip"); } }); steps(m, 8, TOTAL);
+    face: function () {   // photograph for the identity card, with liveness prompts
+      var m = screen(T("face_title"), { back: function () { regGo("info"); } }); steps(m, 5, TOTAL);
+      m.appendChild(el("p", { cls: "hint", text: T("face_card_photo") }));
       var acts = [T("face_look"), T("face_left"), T("face_right"), T("face_blink")], k = 0;
       var cam = camera(m, "user", "face", function (blob) {
         R.files.face = R.files.face || blob;
         k++;
         if (k < acts.length) { cam.tip.textContent = acts[k]; say(acts[k]); return; }
-        cam.tip.textContent = T("face_verifying");
-        setTimeout(function () { regGo("bio"); }, 900);
+        regGo("bio");
       }, { tip: acts[0], shootText: T("face_next") });
       say(acts[0]);
     },
     bio: function () {
-      var m = screen(T("bio_title"), { back: function () { regGo("face"); } }); steps(m, 9, TOTAL);
+      var m = screen(T("bio_title"), { back: function () { regGo("face"); } }); steps(m, 6, TOTAL);
       var err = errBox();
       IAS.bio.available().then(function (ok) {
         if (ok) {
@@ -318,7 +298,7 @@
       });
     },
     pin: function () {
-      var m = screen(T("pin_title"), { back: function () { regGo("bio"); } }); steps(m, 10, TOTAL);
+      var m = screen(T("pin_title"), { back: function () { regGo("bio"); } }); steps(m, 7, TOTAL);
       m.appendChild(el("p", { cls: "lead", text: T("pin_lead") }));
       var first = null;
       var lab = el("p", { cls: "hint" });
@@ -330,26 +310,31 @@
       }, { label: T("enter_new_pin") });
     },
     email: function () {
-      var m = screen(T("email_title"), { back: function () { regGo("pin"); } }); steps(m, 11, TOTAL);
+      var m = screen(T("email_title"), { back: function () { regGo("pin"); } }); steps(m, 8, TOTAL);
       var e = el("input", { type: "email", autocomplete: "email", placeholder: "name@example.com" }), err = errBox();
       m.appendChild(field(T("email"), e, T("email_hint")));
       m.appendChild(err);
       m.appendChild(btn(T("complete_reg"), function () {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.value.trim())) { err.textContent = T("err_email"); return; }
-        this.disabled = true;
-        IAS.register({ version: R.plus ? "plus" : "basic", id_no: R.data.id_no, name_en: R.data.name_en, name_local: R.data.name_local, sex: R.data.sex, dob: R.data.dob,
+        var b = this; b.disabled = true;
+        var d = R.data;
+        IAS.register({ name_en: d.name_en, name_local: d.name_local, sex: d.sex, dob: d.dob, pob: d.pob, nationality: d.nationality, res_status: d.res_status,
                        email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files })
-          .then(function (acc) { ME = acc; return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body")); })
+          .then(function (acc) { ME = acc; return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body", { id: acc.id_no })); })
           .then(function () { R.pin = null; regGo("done"); }, function (x) {
-            var msg = x && x.message === "already_registered" ? T("already_registered") : String(x && x.message || x);
-            err.textContent = msg; this.disabled = false;
-          }.bind(this));
+            err.textContent = x && x.message === "device_has_account" ? T("device_has_account") : String(x && x.message || x);
+            b.disabled = false;
+          });
       }, "big"));
     },
     done: function () {
-      var m = screen(T("reg_done_title"), {}); steps(m, 12, TOTAL);
-      m.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: R && R.plus ? T("reg_done_plus") : T("reg_done_basic") })]));
-      m.appendChild(btn(T("start_using"), function () { UNLOCKED = true; ACT = Date.now(); try { sessionStorage.setItem("ias-unlock", "1"); } catch (e) { /* ignore */ } R = null; go("/home"); }, "big"));
+      var m = screen(T("reg_done_title"), {}); steps(m, 9, TOTAL);
+      m.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("reg_done_basic") }),
+        el("p", { text: T("id_issued") }), el("p", { cls: "code big", text: ME.id_no })]));
+      m.appendChild(el("p", { cls: "hint", text: T("id_issued_note") }));
+      function enter(to) { UNLOCKED = true; ACT = Date.now(); try { sessionStorage.setItem("ias-unlock", "1"); } catch (e) { /* ignore */ } R = null; go(to); }
+      m.appendChild(btn(T("view_idcard"), function () { enter("/idcard"); }, "big"));
+      m.appendChild(btn(T("start_using"), function () { enter("/home"); }, "big sec"));
     }
   };
   function regGo(step) { stopCams(); clearTimer(); REG[step](); window.scrollTo(0, 0); }
@@ -389,7 +374,7 @@
   PAGES.home = function () {
     var m = screen(T("app_name"), { nav: "home", lang: true });
     m.appendChild(el("div", { cls: "welcome" }, [el("p", { text: T("hello", { name: mask(ME.name_en) }) }), el("span", { cls: "ver " + ME.version, text: ME.version === "plus" ? "iAM Smart+" : "iAM Smart" })]));
-    var quick = [["scan", "⌗", T("nav_scan")], ["code", "▦", T("personal_code")], ["eme", "✎", T("eme")], ["docs", "🗎", T("digital_docs")]];
+    var quick = [["scan", "⌗", T("nav_scan")], ["code", "▦", T("personal_code")], ["idcard", "🪪", T("doc_idcard_short")], ["docs", "🗎", T("digital_docs")]];
     m.appendChild(el("div", { cls: "quick" }, quick.map(function (q) { return el("a", { href: "#/" + q[0] }, [el("b", { text: q[1] }), el("span", { text: q[2] })]); })));
     if (ME.version !== "plus") m.appendChild(el("a", { cls: "banner", href: "#/upgrade", text: T("upgrade_banner") }));
     m.appendChild(el("h2", { text: T("featured") }));
@@ -462,25 +447,48 @@
     draw(); var n = 60; left.textContent = T("code_refresh", { n: n });
     timer = setInterval(function () { n--; if (n <= 0) { n = 60; draw(); } left.textContent = T("code_refresh", { n: n }); }, 1000);
   };
-  function evisas() {
-    var all = {}; try { all = JSON.parse(localStorage.getItem("bhg-evisa") || "{}"); } catch (e) { all = {}; }
-    return Object.keys(all).map(function (k) { return all[k]; }).filter(function (r) { return r.people && r.people.some(function (p) { return p.dob === ME.dob && p.name.replace(/\s+/g, " ") === ME.name_en.replace(/\s+/g, " "); }); });
+  function cardVals() {
+    var p = String(ME.name_en || "").split(",");
+    return { idtype: "first", idno: ME.id_no, issued: ME.card_issued_at || ME.created_at, status: ME.res_status || "A", kornat: ME.nationality === "KOR" ? "KOR" : "OTH",
+             surname: (p[0] || "").trim(), given: (p[1] || "").trim(), local: ME.name_local || "", sex: ME.sex, dob: ME.dob,
+             pob: ME.pob === "XX" ? "US" : (ME.pob || "BHG"), chgbirth: "N", chgname: "N", dobproof: "Y", office: "hq" };
   }
+  function docTitle(r) { return lang.indexOf("zh") === 0 ? r.zh : r.en; }
   PAGES.docs = function () {
     var m = screen(T("digital_docs"), { back: "/me" });
-    var list = evisas();
-    if (!list.length) { m.appendChild(el("p", { cls: "empty", text: T("docs_empty") })); return; }
-    list.forEach(function (r) {
-      var card = el("div", { cls: "doc" }, [el("small", { text: r.mode === "ext" ? T("doc_cos") : T("doc_entry") }), el("b", { text: lang.indexOf("zh") === 0 ? r.zh : r.en }), el("p", { text: r.ref })]);
-      card.appendChild(btn(T("show_qr"), function () { var b = el("div", { cls: "qrbox" }, [qrCanvas("BHG-EVISA|" + r.ref + "|" + ME.name_en + "|" + ME.dob, 220)]); card.appendChild(b); this.remove(); }, "sec"));
-      m.appendChild(card);
-    });
+    var id = el("a", { cls: "doc idc", href: "#/idcard" }, [el("small", { text: T("doc_idcard") }), el("b", { text: ME.id_no }), el("p", { text: T("doc_idcard_sub") })]);
+    m.appendChild(id);
+    var box = el("div"); m.appendChild(box);
+    IAS.myDocuments().then(function (list) {
+      (list || []).forEach(function (r) {
+        var card = el("div", { cls: "doc" }, [el("small", { text: r.mode === "ext" ? T("doc_cos") : T("doc_entry") }), el("b", { text: docTitle(r) }), el("p", { text: r.ref })]);
+        card.appendChild(btn(T("show_qr"), function () { card.appendChild(el("div", { cls: "qrbox" }, [qrCanvas("BHG-EVISA|" + r.ref + "|" + ME.name_en + "|" + ME.dob, 220)])); this.remove(); }, "sec"));
+        if (window.BHGEVisaPDF) card.appendChild(btn(T("download_pdf"), function () { window.BHGEVisaPDF(r, ME.dob); }, "sec"));
+        box.appendChild(card);
+      });
+    }).catch(function () { box.appendChild(el("p", { cls: "err", text: T("load_failed") })); });
+  };
+  PAGES.idcard = function () {
+    var m = screen(T("doc_idcard"), { back: "/docs" });
+    var holder = el("div", { cls: "idcard" }, [el("p", { cls: "hint", text: T("loading") })]); m.appendChild(holder);
+    var err = errBox(); m.appendChild(err);
+    IAS.file(ME.id, "face").then(function (photo) {
+      if (!window.BHGIdCardImages) throw new Error("card");
+      photo = photo || new Blob([new Uint8Array(0)], { type: "image/jpeg" });
+      return window.BHGIdCardImages(cardVals(), photo).then(function (c) {
+        holder.innerHTML = "";
+        c.front.className = "cardimg"; c.back.className = "cardimg"; holder.appendChild(c.front); holder.appendChild(c.back);
+        m.appendChild(el("dl", { cls: "kv" }, [el("dt", { text: T("id_no") }), el("dd", { text: ME.id_no }), el("dt", { text: T("symbols") }), el("dd", { text: c.sym })]));
+        m.appendChild(btn(T("download_pdf"), function () { window.BHGIdCardPDF(cardVals(), photo); }, "big"));
+      });
+    }).catch(function () { holder.innerHTML = ""; err.textContent = T("load_failed"); });
   };
   PAGES.status = function () {
     var m = screen(T("app_status"), { back: "/me" });
-    var list = evisas();
-    if (!list.length) { m.appendChild(el("p", { cls: "empty", text: T("status_empty") })); return; }
-    list.forEach(function (r) { m.appendChild(el("div", { cls: "doc" }, [el("small", { text: r.ref }), el("b", { text: lang.indexOf("zh") === 0 ? r.zh : r.en }), el("p", { text: T("status_approved", { d: r.issued }) })])); });
+    IAS.myDocuments().then(function (list) {
+      if (!list || !list.length) { m.appendChild(el("p", { cls: "empty", text: T("status_empty") })); return; }
+      list.forEach(function (r) { m.appendChild(el("div", { cls: "doc" }, [el("small", { text: r.ref }), el("b", { text: docTitle(r) }), el("p", { text: T("status_approved", { d: r.issued }) })])); });
+    });
   };
   PAGES.todo = function () {
     var m = screen(T("todo"), { back: "/me" });
@@ -631,34 +639,23 @@
       confirmAuth(m, function () { IAS.deleteAccount(ME.id).then(function () { ME = null; UNLOCKED = false; toast(T("dereg_done")); go("/"); }); });
     }
   };
-  PAGES.upgrade = function () {
+  PAGES.upgrade = function () {   // iAM Smart+ = facial identification again; the identity card was issued by iAM Smart
     var m = screen(T("upgrade"), { back: "/me" });
     m.appendChild(el("div", { cls: "scroll", html: T("declaration_html") }));
     var cb = el("input", { type: "checkbox" }), err = errBox();
     m.appendChild(el("label", { cls: "chk" }, [cb, el("span", { text: T("agree") })])); m.appendChild(err);
     m.appendChild(btn(T("start"), function () {
       if (!cb.checked) { err.textContent = T("err_agree"); return; }
-      var m2 = screen(T("chip_title"), { back: "/me" });
-      m2.appendChild(el("p", { cls: "lead", text: T("chip_lead") }));
-      m2.appendChild(el("div", { cls: "nfc" }, [el("div", { cls: "phone" }), el("div", { cls: "card" })]));
-      var bar = el("div", { cls: "sbar big" }, [el("i", { style: "width:0%" })]); m2.appendChild(bar);
-      var t0 = Date.now();
-      timer = setInterval(function () {
-        var p = Math.min(1, (Date.now() - t0) / 8000); bar.firstChild.style.width = Math.round(p * 100) + "%";
-        if (p >= 1) {
-          clearTimer();
-          var m3 = screen(T("face_title"), { back: "/me" });
-          camera(m3, "user", "face", function (blob) {
-            IAS.putFile(ME.id, "face_upgrade", blob).then(function () { return IAS.upgrade(ME.id); }).then(function (a) {
-              ME = a; return IAS.notify(ME.id, T("mail_plus_title"), T("mail_plus_body"));
-            }).then(function () {
-              var m4 = screen(T("upgrade"), {});
-              m4.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("upgrade_done") })]));
-              m4.appendChild(btn(T("start_using"), function () { go("/home"); }, "big"));
-            });
-          }, { tip: T("face_look") });
-        }
-      }, 100);
+      var m3 = screen(T("face_title"), { back: "/me" });
+      camera(m3, "user", "face", function (blob) {
+        IAS.putFile(ME.id, "face_upgrade", blob).then(function () { return IAS.upgrade(ME.id); }).then(function (a) {
+          ME = a; return IAS.notify(ME.id, T("mail_plus_title"), T("mail_plus_body"));
+        }).then(function () {
+          var m4 = screen(T("upgrade"), {});
+          m4.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("upgrade_done") })]));
+          m4.appendChild(btn(T("start_using"), function () { go("/home"); }, "big"));
+        });
+      }, { tip: T("face_look") });
     }, "big"));
   };
 

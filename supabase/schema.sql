@@ -259,3 +259,94 @@ create policy ias_files_rw on storage.objects for all to authenticated
   with check (bucket_id = 'ias-files' and (storage.foldername(name))[1] = public.ias_my_account()::text);
 
 insert into storage.buckets (id, name, public) values ('ias-files', 'ias-files', false) on conflict (id) do nothing;
+
+-- =========================================================================================================
+-- Migration 2 (ias_issue_id_and_records): the identity card number is issued on registration;
+-- Immigration Department / GovBHG records (e-Visa, appointment bookings) are kept in the same database.
+-- =========================================================================================================
+alter table public.ias_accounts
+  add column if not exists pob text not null default 'BHG',
+  add column if not exists res_status text not null default 'A' check (res_status in ('A', 'R', 'U', 'C')),
+  add column if not exists nationality text not null default 'KOR',
+  add column if not exists card_issued_at timestamptz not null default now();
+grant select (pob, res_status, nationality, card_issued_at) on public.ias_accounts to authenticated;
+
+create or replace function public.ias_id_check(p_letters text, p_digits text) returns text language plpgsql immutable set search_path = public, extensions as $$
+declare s int; i int; k int;
+begin
+  if length(p_letters) = 1 then s := 36 * 9 + (ascii(p_letters) - 55) * 8;
+  else s := (ascii(substr(p_letters, 1, 1)) - 55) * 9 + (ascii(substr(p_letters, 2, 1)) - 55) * 8; end if;
+  for i in 1..6 loop s := s + (substr(p_digits, i, 1))::int * (8 - i); end loop;
+  k := (11 - s % 11) % 11;
+  return case when k = 10 then 'A' else k::text end;
+end $$;
+
+create or replace function public.ias_new_id_no() returns text language plpgsql volatile set search_path = public, extensions as $$
+declare l text; d text; v text; n int := 0;
+begin
+  loop
+    l := substr('ABCDEGHKMNPRSTVZ', 1 + floor(random() * 16)::int, 1);
+    d := lpad(floor(random() * 1000000)::int::text, 6, '0');
+    v := l || d || '(' || public.ias_id_check(l, d) || ')';
+    exit when not exists (select 1 from public.ias_accounts where id_no = v);
+    n := n + 1; if n > 50 then raise exception 'could not allocate an identity card number'; end if;
+  end loop;
+  return v;
+end $$;
+
+create or replace function public.ias_register(p jsonb) returns uuid language plpgsql security definer set search_path = public, extensions as $$
+declare v_id uuid;
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if exists (select 1 from public.ias_accounts where device_uid = auth.uid() and status <> 'invalid') then raise exception 'device_has_account'; end if;
+  delete from public.ias_accounts where device_uid = auth.uid();
+  insert into public.ias_accounts (device_uid, version, id_no, name_en, name_local, sex, dob, email, pin_hash, parent_id, credential_id, login_method,
+                                   pob, res_status, nationality)
+  values (auth.uid(), 'basic', public.ias_new_id_no(), upper(p->>'name_en'), coalesce(p->>'name_local', ''), p->>'sex', (p->>'dob')::date,
+          coalesce(p->>'email', ''), crypt(p->>'pin', gen_salt('bf')), nullif(p->>'parent_id', '')::uuid, p->>'credential_id',
+          case when coalesce(p->>'credential_id', '') <> '' then 'bio' else 'pin' end,
+          coalesce(nullif(p->>'pob', ''), 'BHG'), coalesce(nullif(p->>'res_status', ''), 'A'), coalesce(nullif(p->>'nationality', ''), 'KOR'))
+  returning id into v_id;
+  insert into public.ias_profiles (account_id, email) values (v_id, coalesce(p->>'email', ''));
+  insert into public.ias_logs (account_id, action, client) values (v_id, 'register', 'iAM Smart');
+  return v_id;
+end $$;
+
+create table if not exists public.imm_evisas (ref text primary key, rec jsonb not null, created_at timestamptz not null default now());
+create table if not exists public.imm_bookings (ref text primary key, code_hash text not null, data jsonb not null, created_at timestamptz not null default now());
+alter table public.imm_evisas enable row level security;
+alter table public.imm_bookings enable row level security;
+revoke all on public.imm_evisas, public.imm_bookings from anon, authenticated;
+
+create or replace function public.imm_save_evisa(p_ref text, p_rec jsonb) returns void language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if p_ref !~ '^[A-Z]{4}-\d{7}-\d{2}\(\d\)$' then raise exception 'bad reference'; end if;
+  insert into public.imm_evisas (ref, rec) values (p_ref, p_rec);
+end $$;
+create or replace function public.imm_get_evisa(p_ref text, p_dob text) returns jsonb language sql stable security definer set search_path = public, extensions as
+$$ select e.rec from public.imm_evisas e where e.ref = upper(p_ref) and exists (select 1 from jsonb_array_elements(e.rec->'people') x where x->>'dob' = p_dob) $$;
+create or replace function public.imm_save_booking(p_ref text, p_code text, p_data jsonb) returns void language sql security definer set search_path = public, extensions as
+$$ insert into public.imm_bookings (ref, code_hash, data) values (upper(p_ref), crypt(p_code, gen_salt('bf')), p_data) $$;
+create or replace function public.imm_find_booking(p_ref text, p_code text) returns jsonb language sql stable security definer set search_path = public, extensions as
+$$ select data from public.imm_bookings where ref = upper(p_ref) and code_hash = crypt(p_code, code_hash) $$;
+create or replace function public.imm_cancel_booking(p_ref text, p_code text) returns boolean language plpgsql security definer set search_path = public, extensions as $$
+begin
+  delete from public.imm_bookings where ref = upper(p_ref) and code_hash = crypt(p_code, code_hash);
+  return found;
+end $$;
+create or replace function public.ias_my_documents() returns jsonb language sql stable security definer set search_path = public, extensions as $$
+  select coalesce(jsonb_agg(e.rec order by e.created_at desc), '[]'::jsonb)
+    from public.imm_evisas e, public.ias_accounts a
+   where a.device_uid = auth.uid() and a.status = 'active'
+     and exists (select 1 from jsonb_array_elements(e.rec->'people') x
+                  where x->>'dob' = a.dob::text and regexp_replace(upper(x->>'name'), '\s+', ' ', 'g') = regexp_replace(upper(a.name_en), '\s+', ' ', 'g'))
+$$;
+
+revoke execute on all functions in schema public from public, anon;
+grant execute on function public.ias_create_request(text, text, text, text[], text), public.ias_poll(uuid, text), public.ias_stats(),
+  public.imm_save_evisa(text, jsonb), public.imm_get_evisa(text, text), public.imm_save_booking(text, text, jsonb),
+  public.imm_find_booking(text, text), public.imm_cancel_booking(text, text) to anon, authenticated;
+grant execute on function public.ias_register(jsonb), public.ias_verify_pin(uuid, text), public.ias_set_pin(uuid, text), public.ias_parent_consent(text, text),
+  public.ias_set_status(text), public.ias_upgrade(), public.ias_my_account(), public.ias_my_documents(),
+  public.ias_rebind(text, text), public.ias_create_transfer(uuid), public.ias_claim_transfer(text), public.ias_request_by_code(text),
+  public.ias_request(uuid), public.ias_decide(uuid, boolean) to authenticated;
