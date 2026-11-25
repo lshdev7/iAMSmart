@@ -147,7 +147,7 @@
     m.appendChild(el("div", { cls: "choose" }, [
       el("button", { type: "button", cls: "big", text: T("age_adult"), click: function () { S.minor = false; start(); } }),
       el("button", { type: "button", cls: "big b2", click: function () { S.minor = true; start(); } }, [T("age_minor"), el("small", { text: T("age_minor2") })])]));
-    m.appendChild(readyList(["ready_phone", "ready_email"]));
+    m.appendChild(readyList(["ready_phone", "ready_email", "ready_evisa"]));
     function start() { S.steps = S.minor ? ["p_scan", "p_parent", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : S.steps; scan(); }
   }
   function upIntro() {
@@ -390,7 +390,7 @@
   function phone() {
     var m = frame("p_bio", T("phone_title"), { noIdle: true, alsoOn: ["p_pin", "p_email"] }), g = gen;
     m.appendChild(el("p", { cls: "lead", text: T("phone_lead") }));
-    m.appendChild(el("div", { cls: "qrrow phone3" }, [el("ol", {}, ["phone_bio", "phone_pin", "phone_email"].map(function (x) { return el("li", { text: T(x) }); }))]));
+    m.appendChild(el("div", { cls: "qrrow phone3" }, [el("ol", {}, (/[CU]/.test(S.data.res || "") ? ["phone_evisa"] : []).concat(["phone_bio", "phone_pin", "phone_email"]).map(function (x) { return el("li", { text: T(x) }); }))]));
     watch(g, function (s) { if (s.status !== "done" || !s.account) return false; S.finished = true; S.account = S.card = s.account;
       cardFace(s.account, S.photo).then(function (u) { if (g === gen) { S.face = u; cardOut(); } }, function () { if (g === gen) done(); });
       return true; });

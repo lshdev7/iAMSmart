@@ -43,9 +43,12 @@ async function signingKey() {
 }
 const short = (ref: string) => ref.replace(/\(.\)$/, "").replace(/-/g, "");
 
+async function expired(rec: unknown) { const { data } = await db.rpc("imm_evisa_expired", { p_rec: rec }); return data === true; }
+
 async function token(ref: string, dob: string) {
   const { data: e } = await db.from("imm_evisas").select("ref,rec,qr").eq("ref", String(ref || "").toUpperCase()).maybeSingle();
   if (!e || !(e.rec.people || []).some((p: { dob: string }) => p.dob === dob)) return { error: "not_found" };
+  if (await expired(e.rec)) return { error: "expired" };   // an expired e-Visa is no longer available
   if (e.qr) return { token: e.qr };
   const k = await signingKey(), key = await crypto.subtle.importKey("jwk", k.priv, ALG, false, ["sign"]);
   const head = "BHGIM.EVIS." + b64u(enc.encode(short(e.ref))) + "." + k.kid;
@@ -68,7 +71,7 @@ async function verify(t: string) {
   const { data: e } = await db.from("imm_evisas").select("ref,rec,qr").eq("qr", t).maybeSingle();
   if (!e) return { valid: false };
   const r = e.rec;
-  return { valid: true, rec: { ref: e.ref, mode: r.mode, k: r.k, zh: r.zh, en: r.en, slip: r.slip, issued: r.issued, valid: r.valid, until: r.until, reuntil: r.reuntil, emp: r.emp, people: (r.people || []).map((p: Record<string, string>) => ({ name: p.name, local: p.local, dob: p.dob })) } };
+  return { valid: true, expired: await expired(r), rec: { ref: e.ref, mode: r.mode, k: r.k, zh: r.zh, en: r.en, slip: r.slip, issued: r.issued, valid: r.valid, until: r.until, reuntil: r.reuntil, emp: r.emp, people: (r.people || []).map((p: Record<string, string>) => ({ name: p.name, local: p.local, dob: p.dob })) } };
 }
 
 Deno.serve(async (req: Request) => {

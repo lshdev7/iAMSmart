@@ -302,6 +302,7 @@
 
   /* ------------------------------------------------------------------ registration */
   var TOTAL = 9;
+  function needEvisa() { return R.data.res_status === "C" || R.data.res_status === "U"; }
   function regStart() { R = { age: null, voice: false, files: {}, data: {} }; }
   var REG = {
     age: function () {
@@ -372,11 +373,42 @@
         if (R.age === "minor" && a >= 18) { err.textContent = T("err_minor"); return; }
         R.data = { sur: sur.value.trim(), giv: giv.value.trim(), name_local: loc.value.trim(), sex: sex.value, dob: dobIso(), pob: pob.value,
                    nationality: nat.value, res_status: res.value, name_en: sur.value.trim().toUpperCase() + ", " + giv.value.trim().toUpperCase() };
-        regGo("face");
+        R.evisa = null;
+        regGo(needEvisa() ? "evisa" : "face");
       }, "big"));
     },
+    evisa: function () {   // non-permanent residents: a valid e-Visa of the same person, read from the file on this device
+      var m = screen(T("evisa_title"), { back: R.kiosk ? null : function () { regGo("info"); } }); steps(m, 4, TOTAL);
+      m.appendChild(el("p", { cls: "lead", text: T("evisa_lead") }));
+      m.appendChild(el("ul", { cls: "todo" }, ["evisa_n1", "evisa_n2", "evisa_n3"].map(function (k) { return el("li", { text: T(k) }); })));
+      var inp = el("input", { type: "file", accept: "application/pdf,image/jpeg,image/gif,image/png" }), box = el("div", {}), run = 0;
+      m.appendChild(field(T("evisa_file"), inp)); m.appendChild(box);
+      var next = btn(T("next"), function () { if (R.evisa) regGo(R.kiosk ? "bio" : "face"); }, "big"); next.disabled = true; m.appendChild(next);
+      function bad(k) { box.innerHTML = ""; box.appendChild(el("div", { cls: "notice bad" }, [el("p", { text: T(k) })])); }
+      inp.addEventListener("change", function () {
+        var f = inp.files && inp.files[0], me = ++run; R.evisa = null; next.disabled = true; box.innerHTML = "";
+        if (!f) return;
+        box.appendChild(el("p", { cls: "hint", text: T("evisa_reading") }));
+        var read = window.BHGEVisaRead ? window.BHGEVisaRead.file(f).catch(function () { return []; }) : Promise.resolve([]);
+        read.then(function (l) {
+          if (me !== run) return null;
+          if (!l.length) { bad("evisa_none"); return null; }
+          if (l.every(function (t) { return /^BHG-EVISA\|/.test(t); })) { bad("evisa_old"); return null; }
+          // a file may hold the e-Visas of a family: the one of the applicant counts
+          return l.reduce(function (p, t) {
+            return p.then(function (r) { return r && r.ok ? r : IAS.checkEvisa(t, R.data.name_en, R.data.dob).then(function (x) { x.token = t; return !r || x.ok || r.error === "evisa_invalid" || r.error === "evisa_mismatch" ? x : r; }); });
+          }, Promise.resolve(null)).then(function (r) {
+            if (me !== run) return;
+            if (!r.ok) { bad(r.error); return; }
+            R.evisa = r.token; next.disabled = false; box.innerHTML = "";
+            box.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("evisa_ok") })]));
+            box.appendChild(el("dl", { cls: "kv" }, [el("dt", { text: T("evisa_ref") }), el("dd", { text: r.ref }), el("dt", { text: T("evisa_scheme") }), el("dd", { text: lang.indexOf("zh") === 0 ? r.zh : r.en }), el("dt", { text: T("evisa_until") }), el("dd", { text: r.until })]));
+          });
+        }).catch(function () { if (me === run) bad("load_failed"); });
+      });
+    },
     face: function () {   // photograph for the identity card, with liveness prompts
-      var m = screen(T("face_title"), { back: function () { regGo("info"); } }); steps(m, 5, TOTAL);
+      var m = screen(T("face_title"), { back: function () { regGo(needEvisa() ? "evisa" : "info"); } }); steps(m, 5, TOTAL);
       m.appendChild(el("p", { cls: "hint", text: T("face_card_photo") }));
       faceStep(m, function (res) { R.files.face = res.blob; R.face_desc = res.descriptor; setTimeout(function () { regGo("bio"); }, 600); });
     },
@@ -418,14 +450,14 @@
         var b = this; b.disabled = true;
         var d = R.data;
         IAS.register({ name_en: d.name_en, name_local: d.name_local, sex: d.sex, dob: d.dob, pob: d.pob, nationality: d.nationality, res_status: d.res_status,
-                       email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files, face_desc: R.face_desc })
+                       email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files, face_desc: R.face_desc, evisa: R.evisa || "" })
           .then(function (acc) {
             ME = acc;
             return !R.kiosk ? acc : IAS.kiosk.finish(R.kiosk).then(function () { return refreshMe(); });
           }).then(function (acc) { return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body", { id: acc.id_no })); })
           .then(function () { R.pin = null; regGo("done"); }, function (x) {
             var k = x && x.message;
-            err.textContent = k === "device_has_account" ? T("device_has_account") : k === "face_already_registered" ? T("face_dup") : k === "face_required" ? T("face_error") : String(k || x);
+            err.textContent = k === "device_has_account" ? T("device_has_account") : k === "face_already_registered" ? T("face_dup") : k === "face_required" ? T("face_error") : /^evisa_/.test(k) ? T(k) : String(k || x);
             b.disabled = false;
           });
       }, "big"));
@@ -505,7 +537,7 @@
     var p = s.p, n = p.name_en.split(", ");
     R.kiosk = id; R.data = { sur: n[0], giv: n[1] || "", name_local: p.name_local || "", sex: p.sex, dob: p.dob, pob: p.pob, nationality: p.nationality, res_status: p.res_status, name_en: p.name_en };
     R.face_desc = s.face_desc; R.parent_id = s.parent_id || null;
-    fetch(s.photo).then(function (r) { return r.blob(); }).then(function (b) { R.files.face = b; regGo("bio"); });
+    fetch(s.photo).then(function (r) { return r.blob(); }).then(function (b) { R.files.face = b; regGo(needEvisa() ? "evisa" : "bio"); });
   }
   PAGES.rebind = function () {
     var m = screen(T("rebind"), { back: "/" });
@@ -666,6 +698,7 @@
     IAS.myDocuments().then(function (list) {
       (list || []).forEach(function (r) {
         var card = el("div", { cls: "doc" }, [el("small", { text: r.mode === "ext" ? T("doc_cos") : T("doc_entry") }), el("b", { text: docTitle(r) }), el("p", { text: r.ref })]);
+        if (window.BHGEVisaExpired && window.BHGEVisaExpired(r)) { card.appendChild(el("p", { cls: "err", text: T("evisa_over") })); box.appendChild(card); return; }
         card.appendChild(btn(T("show_qr"), function () {
           var b = this; b.disabled = true;
           IAS.records.evisaToken(r.ref, ME.dob).then(function (x) { card.appendChild(el("div", { cls: "qrbox" }, [qrCanvas(x.token, 220)])); b.remove(); }).catch(function () { b.disabled = false; toast(T("load_failed")); });

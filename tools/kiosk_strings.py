@@ -35,6 +35,8 @@ S = {
     "ready": ("Please make ready:", "준비물:", "請準備："),
     "ready_phone": ("Your smartphone with the “iAM Smart” app, connected to the Internet and with biometric authentication enabled", "인터넷에 연결되고 생체 인증이 켜진, \"iAM Smart\" 앱이 있는 휴대폰", "已安裝「智方便」應用程式、可上網並已啟用生物認證的智能電話"),
     "ready_email": ("Your email address", "이메일 주소", "你的電郵地址"),
+    "ready_evisa": ("Non-permanent residents: a valid “e-Visa” file saved on your phone", "비영주 주민: 휴대폰에 저장된 유효한 \"e-Visa\" 파일", "非永久性居民：已儲存在手機的有效「電子簽證」檔案"),
+    "phone_evisa": ("Provide your “e-Visa” file", "\"e-Visa\" 파일 제출", "提交「電子簽證」檔案"),
     "ready_card": ("Your identity card", "신분증", "你的身份證"),
     "scan_title": ("Scan the QR code with the “iAM Smart” mobile app", "\"iAM Smart\" 앱으로 QR 코드를 스캔하세요", "請使用「智方便」流動應用程式掃描二維碼"),
     "scan_1": ("Open the “iAM Smart” mobile app on your phone", "휴대폰에서 \"iAM Smart\" 앱 열기", "打開個人流動電話上的「智方便」流動應用程式"),

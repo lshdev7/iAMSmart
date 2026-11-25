@@ -118,6 +118,7 @@ P["reg"] = [
     ("steps", [("Open the “iAM Smart” mobile app and select “Register now”", "\"iAM Smart\" 앱을 열고 \"지금 가입\" 선택", "開啟「智方便」流動應用程式並選擇「立即登記」"), ("Select “Adult (Aged 18 or over)”", "\"성인(만 18세 이상)\" 선택", "選擇「成人（18歲或以上）」"),
                ("Read and agree the “Declaration of the Applicant”", "\"신청인 선언\"을 읽고 동의", "閱讀並同意「申請人聲明」"), ("Choose voice navigation", "음성 안내 선택", "選擇語音導航"),
                ("Enter your personal particulars (name, sex, date of birth, place of birth, nationality, residence status)", "인적사항 입력(성명, 성별, 생년월일, 출생지, 국적, 거주 자격)", "輸入個人資料（姓名、性別、出生日期、出生地點、國籍、居留身份）"),
+               ("Non-permanent residents: provide the file of a valid “e-Visa” (not a visitor’s, permitted stay of more than 180 days). Registration continues only after its QR code has been verified", "비영주 주민: 유효한 \"e-Visa\" 파일 제출(방문용 제외, 체류 허가 180일 초과). QR 코드가 확인되어야 가입을 계속할 수 있습니다", "非永久性居民：提交有效的「電子簽證」檔案（訪客除外，准許逗留超過180日）。二維碼經核實後方可繼續登記"),
                ("Take the photograph for your identity card, with liveness checks", "실물 확인과 함께 신분증 사진 촬영", "拍攝身份證照片並進行活體檢測"), ("Set up the phone’s biometric authentication", "휴대폰 생체 인증 설정", "設定手機生物認證"),
                ("Set up a 6-digit “iAM Smart” password", "6자리 \"iAM Smart\" 비밀번호 설정", "設定六位數字「智方便」密碼"), ("Provide an email address", "이메일 주소 입력", "提供電郵地址"),
                ("Registration is completed – your identity card and identity card number are issued", "가입 완료 – 신분증과 신분증 번호 발급", "完成登記 – 獲發身份證及身份證號碼")]),
