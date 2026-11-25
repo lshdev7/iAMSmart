@@ -8,6 +8,7 @@
 |---|---|
 | `en/ ko/ zh-hant/ zh-hans/` | 안내 웹사이트 (`python3 tools/build.py`로 생성) |
 | `app/` | 휴대폰 앱 역할을 하는 웹앱 (가입·로그인·e-ME·개인 코드·전자 증명서·설정·요청 승인) |
+| `kiosk/` | 셀프 등록 키오스크 (가입·iAM Smart+ 업그레이드·계정 정지). `?full=1`은 화면만, 문구는 `tools/kiosk_strings.py`, 서버는 `supabase/migrations/0006_ias_kiosk.sql` |
 | `lib/ias-api.js` | 앱과 연동 사이트가 쓰는 API (`window.IAS`) |
 | `lib/adapter-local.js` | 저장소: 브라우저 IndexedDB (현재 사용) |
 | `lib/adapter-supabase.js` | 저장소: Supabase (나중에 사용) |

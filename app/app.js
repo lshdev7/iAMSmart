@@ -323,7 +323,7 @@
       faceStep(m, function (res) { R.files.face = res.blob; R.face_desc = res.descriptor; setTimeout(function () { regGo("bio"); }, 600); });
     },
     bio: function () {
-      var m = screen(T("bio_title"), { back: function () { regGo("face"); } }); steps(m, 6, TOTAL);
+      var m = screen(T("bio_title"), { back: R.kiosk ? null : function () { regGo("face"); } }); steps(m, 6, TOTAL);
       var err = errBox();
       IAS.bio.available().then(function (ok) {
         if (ok) {
@@ -361,7 +361,10 @@
         var d = R.data;
         IAS.register({ name_en: d.name_en, name_local: d.name_local, sex: d.sex, dob: d.dob, pob: d.pob, nationality: d.nationality, res_status: d.res_status,
                        email: e.value.trim(), pin: R.pin, parent_id: R.parent_id || null, credential_id: R.credential_id || null, files: R.files, face_desc: R.face_desc })
-          .then(function (acc) { ME = acc; return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body", { id: acc.id_no })); })
+          .then(function (acc) {
+            ME = acc;
+            return !R.kiosk ? acc : IAS.kiosk.finish(R.kiosk).then(function () { return refreshMe(); });
+          }).then(function (acc) { return IAS.notify(acc.id, T("mail_welcome_title"), T("mail_welcome_body", { id: acc.id_no })); })
           .then(function () { R.pin = null; regGo("done"); }, function (x) {
             var k = x && x.message;
             err.textContent = k === "device_has_account" ? T("device_has_account") : k === "face_already_registered" ? T("face_dup") : k === "face_required" ? T("face_error") : String(k || x);
@@ -371,7 +374,7 @@
     },
     done: function () {
       var m = screen(T("reg_done_title"), {}); steps(m, 9, TOTAL);
-      m.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("reg_done_basic") }),
+      m.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T(ME.version === "plus" ? "reg_done_plus" : "reg_done_basic") }),
         el("p", { text: T("id_issued") }), el("p", { cls: "code big", text: ME.id_no })]));
       m.appendChild(el("p", { cls: "hint", text: T("id_issued_note") }));
       function enter(to) { UNLOCKED = true; ACT = Date.now(); try { sessionStorage.setItem("ias-unlock", "1"); } catch (e) { /* ignore */ } R = null; go(to); }
@@ -385,11 +388,67 @@
   var PAGES = {};
   PAGES.welcome = welcome;
   PAGES.reg = function () { REG.age(); };
-  PAGES.kiosk = function () {
+  PAGES.kiosk = function (id) {
+    if (id) return kioskSession(id);
     var m = screen(T("reg_kiosk"), { back: "/" });
     m.appendChild(el("p", { cls: "lead", text: T("kiosk_lead") }));
+    scanner(m);
     m.appendChild(el("a", { cls: "btn big sec", href: "../" + (lang === "en" ? "en" : lang) + "/reg-locations/", target: "_blank", text: T("locations") }));
   };
+  /* the phone side of a kiosk session: link -> (parent's consent) -> wait for the kiosk -> finish on the phone */
+  function kioskSession(id) {
+    var m = screen(T("kiosk_title"), { back: "/" });
+    var box = el("div", {}); m.appendChild(box);
+    function show(kids) { box.innerHTML = ""; kids.forEach(function (k) { box.appendChild(k); }); }
+    function msg(key) { show([el("p", { cls: "lead", text: T(key) })]); }
+    function bad(key) { clearTimer(); show([el("div", { cls: "notice bad" }, [el("p", { text: T("kiosk_err_" + key) })]), btn(T("back_home"), function () { go("/"); }, "big sec")]); }
+    msg("loading");
+    IAS.kiosk.get(id).then(function (s) {
+      if (!s || /expired|cancelled/.test(s.status) || (s.status === "done" && !s.mine)) return bad("expired");
+      if (ME && s.minor && s.scanned && !s.mine && !s.parent) return parentConsent(s);
+      return IAS.kiosk.claim(id).then(function (r) {
+        if (r.error) return bad(r.error === "taken" && s.minor && !ME ? "parent_need_account" : r.error);
+        watch();
+      });
+    }, function () { bad("load"); });
+    function parentConsent() {
+      var cb = el("input", { type: "checkbox" }), err = errBox();
+      show([el("h2", { text: T("kiosk_parent_title") }), el("div", { cls: "scroll", html: T("kiosk_parent_html") }), el("label", { cls: "chk" }, [cb, el("span", { text: T("agree") })]), err,
+        btn(T("kiosk_parent_agree"), function () {
+          if (!cb.checked) { err.textContent = T("err_agree"); return; }
+          IAS.kiosk.parent(id).then(function (r) {
+            if (r.error) return bad(r.error);
+            show([el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("parent_ok") }), el("p", { text: T("kiosk_parent_done") })])]);
+          });
+        }, "big")]);
+    }
+    function watch() {
+      var last = "";
+      function poll() {
+        IAS.kiosk.get(id).then(function (s) {
+          if (!timer) return;
+          if (!s || /expired|cancelled/.test(s.status)) return bad("expired");
+          if (s.status === "captured") { clearTimer(); return fromKiosk(id, s); }
+          if (s.status === "done") {
+            clearTimer();
+            return refreshMe().then(function () { return IAS.notify(ME.id, T("mail_plus_title"), T("mail_plus_body")); }).then(function () {
+              show([el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("upgrade_done") })]), btn(T("start_using"), function () { go("/home"); }, "big")]);
+            });
+          }
+          var k = s.minor && !s.parent ? "kiosk_wait_parent" : "kiosk_wait";
+          if (k !== last) { last = k; show([el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T("kiosk_linked") }), el("p", { text: T(k) })])]); }
+        }, function () { /* try again */ });
+      }
+      timer = setInterval(poll, 2000); poll();
+    }
+  }
+  function fromKiosk(id, s) {   // particulars and photograph were taken at the kiosk; continue with steps 6-9 on the phone
+    regStart();
+    var p = s.p, n = p.name_en.split(", ");
+    R.kiosk = id; R.data = { sur: n[0], giv: n[1] || "", name_local: p.name_local || "", sex: p.sex, dob: p.dob, pob: p.pob, nationality: p.nationality, res_status: p.res_status, name_en: p.name_en };
+    R.face_desc = s.face_desc; R.parent_id = s.parent_id || null;
+    fetch(s.photo).then(function (r) { return r.blob(); }).then(function (b) { R.files.face = b; regGo("bio"); });
+  }
   PAGES.rebind = function () {
     var m = screen(T("rebind"), { back: "/" });
     m.appendChild(el("h2", { text: T("transfer_in") }));
@@ -445,6 +504,9 @@
   PAGES.scan = function () {
     var m = screen(T("nav_scan"), { nav: "scan" });
     m.appendChild(el("p", { cls: "lead", text: T("scan_lead") }));
+    scanner(m);
+  };
+  function scanner(m) {
     var wrap = el("div", { cls: "cam qr" }), video = el("video", { playsinline: true, autoplay: true, muted: true }), err = errBox();
     wrap.appendChild(video); wrap.appendChild(el("div", { cls: "frame" })); m.appendChild(wrap); m.appendChild(err);
     function handle(raw) {
@@ -452,11 +514,14 @@
       try { text = decodeURIComponent(text); } catch (e) { /* keep as read */ }
       // the QR code carries the app address with the request number (a UUID); find it wherever it is
       var id = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(text);
-      if (id) { go("/auth/" + id[1].toLowerCase()); return true; }
+      if (id) { go((/kiosk/i.test(text) ? "/kiosk/" : "/auth/") + id[1].toLowerCase()); return true; }
       var c = text.toUpperCase().replace(/[\s\-]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
       if (/^[0-9A-Z]{6}$/.test(c)) {
         err.textContent = "";
-        IAS.requestByCode(c).then(function (r) { if (r) go("/auth/" + r.id); else err.textContent = T("code_bad"); },
+        IAS.kiosk.byCode(c).then(function (k) {
+          if (k) { go("/kiosk/" + k); return; }
+          return IAS.requestByCode(c).then(function (r) { if (r) go("/auth/" + r.id); else err.textContent = T("code_bad"); });
+        }).then(null,
                                   function () { err.textContent = T("load_failed"); });
         return true;
       }
@@ -472,7 +537,7 @@
     var code = el("input", { type: "text", placeholder: "AB12CD", maxlength: "6", autocomplete: "off", cls: "codein" });
     m.appendChild(field(T("code_manual"), code));
     m.appendChild(btn(T("confirm"), function () { handle(code.value); }, "big"));
-  };
+  }
   PAGES.inbox = function () {
     var m = screen(T("nav_inbox"), { nav: "inbox" });
     IAS.inbox(ME.id).then(function (list) {

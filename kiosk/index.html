@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>iAM Smart Self-Registration Kiosk</title>
+<link rel="icon" href="../assets/favicon.svg?v=1795586343" type="image/svg+xml">
+<link rel="stylesheet" href="kiosk.css?v=1795586343">
+</head>
+<body>
+<div id="fit"><div id="machine">
+  <div class="shield l"></div><div class="shield r"></div>
+  <div class="upper">
+    <div class="sign"><p id="sgApp"></p><span class="sqr" id="sgQr"></span><b class="smeth" id="sgMeth"></b><img src="../assets/logo.svg?v=1795586343" alt="iAM Smart"><span class="shot"><small id="sgHot"></small><b>182 123</b></span></div>
+    <div class="head"><i class="lamp"></i><i class="camhole"></i><i class="lamp"></i></div>
+    <div class="bezel"><div id="screen"></div></div>
+  </div>
+  <div class="mid">
+    <div class="tray">
+      <i class="speaker"></i>
+      <div class="slotbox"><div class="orange"><b id="sgCard"></b></div>
+        <button type="button" class="slot" id="slot" aria-label="Card slot"><i class="led"></i><i class="mouth"></i><i class="card" id="card"></i></button>
+        <div class="chipsign"><i></i><small id="sgChip"></small></div></div>
+      <i class="braille"></i>
+    </div>
+    <i class="scanner"></i>
+    <div class="mlogo"><img src="../assets/logo.svg?v=1795586343" alt="iAM Smart"></div>
+    <i class="strip sl"></i><i class="strip sr"></i>
+  </div>
+  <div class="low"><i class="strip sl"></i><i class="strip sr"></i></div>
+  <div class="foot"></div>
+</div></div>
+<button type="button" id="mode"></button>
+<script src="../lib/config.js?v=1795586343"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
+<script src="../lib/adapter-local.js?v=1795586343"></script>
+<script src="../lib/adapter-supabase.js?v=1795586343"></script>
+<script src="../lib/ias-api.js?v=1795586343"></script>
+<script src="../lib/qrcode.js?v=1795586343"></script>
+<script src="../lib/face.js?v=1795586343"></script>
+<script src="/bhg_Immigration_Department/assets/passport-pdf.js?v=1795586343"></script>
+<script src="/bhg_Immigration_Department/assets/id-pdf.js?v=1795586343"></script>
+<script src="i18n.js?v=1795586343"></script>
+<script src="keyboard.js?v=1795586343"></script>
+<script src="kiosk.js?v=1795586343"></script>
+</body>
+</html>

@@ -126,9 +126,14 @@ P["reg"] = [
     ("h2", ("Upgrade to “iAM Smart+” in the app", "앱에서 \"iAM Smart+\"로 업그레이드", "在應用程式內升級至「智方便+」")),
     ("steps", [("Select “Upgrade to iAM Smart+”", "\"iAM Smart+로 업그레이드\" 선택", "選擇「升級至智方便+」"), ("Agree the declaration", "선언에 동의", "同意聲明"), ("Facial identification", "얼굴 인증", "面部識別"), ("“iAM Smart+” upgrade is completed", "\"iAM Smart+\" 업그레이드 완료", "完成升級至「智方便+」")]),
     ("h2", ("Self-registration kiosk / Registration service counter", "셀프 등록 키오스크·등록 창구", "自助登記站／登記服務櫃位")),
-    ("steps", [("Select the language and “Registration of iAM Smart”", "언어와 \"iAM Smart 가입\" 선택", "選擇語言及「登記智方便」"), ("Scan the kiosk QR code with the app", "앱으로 키오스크 QR 코드 스캔", "以應用程式掃描登記站二維碼"),
+    ("steps", [("Select the language, then “Registration of iAM Smart” and your age group", "언어를 고르고 \"iAM Smart 계정이 없으신가요?\"와 나이 선택", "選擇語言，揀選「未有智方便戶口」及年齡組別"),
+               ("Open the “iAM Smart” app, select “Registration from Self-registration kiosk / Registration service counters” and scan the kiosk QR code", "\"iAM Smart\" 앱에서 \"셀프 등록 키오스크·등록 창구에서 가입\"을 고르고 키오스크 QR 코드 스캔", "打開「智方便」應用程式，揀選「經自助登記站／登記服務櫃位登記」並掃描登記站二維碼"),
+               ("Aged 11 to 17: the parent or guardian scans the QR code with his/her own app and agrees the declaration", "만 11~17세: 부모나 보호자가 본인 앱으로 QR 코드를 스캔하고 선언에 동의", "11至17歲：父母或監護人以其應用程式掃描二維碼並同意聲明"),
+               ("Read and agree the applicant’s declaration and terms of use", "신청인 선언과 이용 약관을 읽고 동의", "細閱並同意申請人聲明及使用條款"),
                ("Enter your personal particulars and take your photograph at the kiosk", "키오스크에서 인적사항 입력 및 사진 촬영", "在登記站輸入個人資料及拍照"), ("Set up the 6-digit password and email address on the phone", "휴대폰에서 6자리 비밀번호와 이메일 설정", "在手機設定六位數字密碼及電郵地址"),
-               ("Registration is completed – your identity card is printed at the kiosk", "가입 완료 – 키오스크에서 신분증 출력", "完成登記 – 在登記站列印身份證")]),
+               ("“iAM Smart+” registration is completed – your identity card is issued at the kiosk", "\"iAM Smart+\" 가입 완료 – 키오스크에서 신분증 발급", "完成登記「智方便+」 – 在登記站發出身份證")]),
+    ("p", ("The kiosk also provides upgrade to “iAM Smart+” and account suspension.", "키오스크에서는 \"iAM Smart+\" 업그레이드와 계정 정지도 할 수 있습니다.", "自助登記站亦提供升級至「智方便+」及暫停戶口服務。")),
+    ("kiosk", ("Open the self-registration kiosk", "셀프 등록 키오스크 열기", "開啟自助登記站")),
 ]
 P["reg-locations"] = [
     ("p", ("Self-registration kiosks and registration service counters are located at the following places.", "셀프 등록 키오스크와 등록 창구는 다음 장소에 있습니다.", "自助登記站及登記服務櫃位設於以下地點。")),
@@ -137,6 +142,7 @@ P["reg-locations"] = [
         [("Baekhyeon Maeul Complex 3 Branch Office", "백현마을 3단지 지소", "柏峴마을3社區分區辦事處"), ("Baekhyeon Maeul Complex 3", "백현마을 3단지", "柏峴마을3社區"), ("Kiosk", "키오스크", "登記站"), ("Daily 7:00–23:00", "매일 7:00~23:00", "每日 7:00–23:00")],
         [("Baekhyeon Maeul Complex 4 Branch Office", "백현마을 4단지 지소", "柏峴마을4社區分區辦事處"), ("Baekhyeon Maeul Complex 4", "백현마을 4단지", "柏峴마을4社區"), ("Kiosk / Counter", "키오스크·창구", "登記站／櫃位"), ("Mon–Fri 9:00–18:00", "월~금 9:00~18:00", "星期一至五 9:00–18:00")],
     ]),
+    ("kiosk", ("Open the self-registration kiosk", "셀프 등록 키오스크 열기", "開啟自助登記站")),
 ]
 FAQ = [
     (("General", "일반", "一般"), [

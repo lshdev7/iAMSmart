@@ -385,3 +385,5 @@ end $$;
 -- same-person checks, one face = one account, rebind with password + face; requests valid for 180 seconds and
 -- looked up by code whatever their status. Applied to project BHG through the Supabase migrations of the same names;
 -- see supabase/migrations/ for the exact SQL.
+
+-- Migration 6 (ias_kiosk): self-registration kiosk sessions, see supabase/migrations/0006_ias_kiosk.sql.

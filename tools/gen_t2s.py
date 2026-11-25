@@ -6,7 +6,7 @@ import opencc
 HERE = os.path.dirname(os.path.abspath(__file__))
 cc = opencc.OpenCC("t2s")
 chars = set()
-for name in ("data.py", "app_strings.py", "build.py"):
+for name in ("data.py", "app_strings.py", "kiosk_strings.py", "build.py"):
     with open(os.path.join(HERE, name), encoding="utf-8") as f:
         chars |= {c for c in f.read() if "一" <= c <= "鿿"}
 m = {c: cc.convert(c) for c in sorted(chars) if cc.convert(c) != c}
