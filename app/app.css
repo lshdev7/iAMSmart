@@ -70,3 +70,5 @@ hr{border:0;border-top:1px solid var(--line);margin:22px 0}
 .fsteps li{font-size:12px;padding:5px 10px;border-radius:14px;background:#e2e8eb;color:#58636a}
 .fsteps li.on{background:#fff3d6;color:#7a5600;font-weight:700}.fsteps li.done{background:var(--teal);color:#fff}.fsteps li.done::before{content:"✓ "}
 .cam.face.live .frame{border-style:solid}
+
+.accts li a b{display:block;font-size:17px}.accts li a{position:relative;padding-right:34px}.accts li a small{color:var(--mut)}.accts li a::after{position:absolute;right:14px;top:50%;transform:translateY(-50%)}

@@ -13,7 +13,7 @@
   function T(k, vars) { var s = (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k; if (vars) Object.keys(vars).forEach(function (v) { s = s.split("{" + v + "}").join(vars[v]); }); return s; }
 
   var root = document.getElementById("app");
-  var ME = null, UNLOCKED = false, R = null, timer = null, streams = [];
+  var ME = null, UNLOCKED = "", PENDING = "", R = null, timer = null, streams = [];
 
   /* ------------------------------------------------------------------ helpers */
   function el(tag, p, kids) {
@@ -178,42 +178,73 @@
   var ACT = 0;
   ["click", "keydown", "touchstart"].forEach(function (ev) { document.addEventListener(ev, function () { ACT = Date.now(); }, true); });
   setInterval(function () {
-    if (UNLOCKED && ME && Date.now() - ACT > (ME.auto_logout || 5) * 60000) { UNLOCKED = false; try { sessionStorage.removeItem("ias-unlock"); } catch (e) { /* ignore */ } toast(T("auto_logged_out")); route(); }
+    if (UNLOCKED && ME && Date.now() - ACT > (ME.auto_logout || 5) * 60000) { relock(); toast(T("auto_logged_out")); route(); }
   }, 15000);
 
-  function refreshMe() { return IAS.current().then(function (a) { ME = a; return a; }); }
+  /* UNLOCKED holds the id of the account that was authenticated in this tab, so it never opens another account */
+  function unlocked(id) { UNLOCKED = id; ACT = Date.now(); try { sessionStorage.setItem("ias-unlock", id); } catch (e) { /* ignore */ } }
+  function relock() { UNLOCKED = ""; try { sessionStorage.removeItem("ias-unlock"); } catch (e) { /* ignore */ } }
+  function refreshMe() {
+    return IAS.current().then(function (a) { ME = a; IAS.slots.label(a ? { id: a.id, name: mask(a.name_en), id_no: maskId(a.id_no) } : null); return a; });
+  }
+  function leave(to) {   // log out of this account; it stays on this device and can be chosen again
+    relock(); R = null;
+    return IAS.slots.fresh().then(function () { ME = null; if (location.hash.replace(/^#/, "") === to) route(); else go(to); });
+  }
+  function otherAccount(m) {   // keeps the request of an online service, if there is one
+    m.appendChild(btn(T("other_account"), function () { var h = location.hash.replace(/^#/, ""); leave(/^\/(auth|kiosk)\//.test(h) ? h : "/"); }, "link"));
+  }
+  function accountList(m) {   // accounts on this device, log in, register
+    var box = el("div", {}), reg = btn(T("register_now"), function () { go("/reg"); }, "big"), log = btn(T("signin_first"), function () { go("/signin"); }, "sec big");
+    [box, reg, log].forEach(function (x) { m.appendChild(x); });
+    IAS.slots.list().then(function (l) {
+      if (!l.length) return;
+      log.textContent = T("signin"); log.className = "btn big"; reg.className = "btn sec big"; m.insertBefore(log, reg);
+      box.appendChild(el("h2", { text: T("choose_account") }));
+      box.appendChild(el("ul", { cls: "menu accts" }, l.map(function (x) {
+        return el("li", {}, [el("a", { href: "#", role: "button", on: { click: function (ev) {
+          ev.preventDefault(); relock();
+          IAS.slots.use(x.key).then(refreshMe).then(function (me) { if (!me) toast(T("account_moved")); route(); });
+        } } }, [el("b", { text: mask(x.name) }), el("small", { text: maskId(x.id_no) })])]);
+      })));
+    });
+  }
+  function signedIn() { var p = PENDING; PENDING = ""; go(p ? "/auth/" + p : "/home"); }
   function route() {
     var h = location.hash.replace(/^#\/?/, "") || "";
     var parts = h.split("/"), page = parts[0], arg = parts.slice(1).join("/");
     var q = /[?&]req=([\w-]+)/.exec(location.search);
     if (q && !page) { history.replaceState(null, "", location.pathname + "#/auth/" + q[1]); page = "auth"; arg = q[1]; }
     refreshMe().then(function (me) {
-      var open = ["reg", "rebind", "kiosk", "welcome"];
+      var open = ["reg", "rebind", "signin", "kiosk", "welcome"];
+      if (me && (page === "rebind" || page === "signin")) return leave("/" + page);   // another account gets its own slot
       if (!me) { if (open.indexOf(page) < 0) return page === "auth" ? noAccount(arg) : welcome(); return PAGES[page](arg); }
       if (me.status === "invalid") return invalid();
       if (me.status === "suspended" && page !== "reactivate") return suspended();
-      if (!UNLOCKED && page !== "reactivate") return lock(function () { route(); });
+      if (UNLOCKED !== me.id && page !== "reactivate") return lock(function () { route(); });
       (PAGES[page] || PAGES.home)(arg);
     });
   }
   window.addEventListener("hashchange", route);
-  try { if (sessionStorage.getItem("ias-unlock")) { UNLOCKED = true; ACT = Date.now(); } } catch (e) { /* ignore */ }
+  try { UNLOCKED = sessionStorage.getItem("ias-unlock") || ""; ACT = Date.now(); } catch (e) { /* ignore */ }
 
   /* ------------------------------------------------------------------ welcome, lock */
   function welcome() {
     var m = screen("", { plain: true, lang: true });
     m.appendChild(el("div", { cls: "hero" }, [el("img", { src: "../assets/logo.svg", alt: "iAM Smart", cls: "biglogo" }), el("p", { text: T("tagline") })]));
-    m.appendChild(btn(T("register_now"), function () { go("/reg"); }, "big"));
+    PENDING = "";
+    accountList(m);
     m.appendChild(btn(T("reg_kiosk"), function () { go("/kiosk"); }, "sec big"));
     m.appendChild(btn(T("rebind"), function () { go("/rebind"); }, "link"));
   }
   function noAccount(reqId) {
     var m = screen(T("app_name"), { lang: true });
     m.appendChild(el("p", { cls: "lead", text: T("need_account") }));
-    m.appendChild(btn(T("register_now"), function () { go("/reg"); }, "big"));
+    PENDING = reqId || "";
+    accountList(m);
     m.appendChild(btn(T("rebind"), function () { go("/rebind"); }, "link"));
   }
-  function unlockWith(cb) { UNLOCKED = true; ACT = Date.now(); try { sessionStorage.setItem("ias-unlock", "1"); } catch (e) { /* ignore */ } IAS.log(ME.id, "login", "iAM Smart").then(cb); }
+  function unlockWith(cb) { unlocked(ME.id); IAS.log(ME.id, "login", "iAM Smart").then(cb); }
   function lock(cb) {
     var m = screen(T("app_name"), { lang: true, plain: true });
     m.appendChild(el("div", { cls: "hero small" }, [el("img", { src: "../assets/logo.svg", alt: "iAM Smart", cls: "biglogo" }), el("p", { cls: "hello", text: T("hello", { name: mask(ME.name_en) }) })]));
@@ -233,16 +264,19 @@
       });
     }, { label: T("enter_pin") });
     m.appendChild(btn(T("forgot_pin"), function () { go("/rebind"); }, "link"));
+    otherAccount(m);
   }
   function invalid() {
     var m = screen(T("app_name"), { plain: true });
     m.appendChild(el("div", { cls: "notice bad" }, [el("h2", { text: T("invalid_title") }), el("p", { text: T("invalid_body") })]));
     m.appendChild(btn(T("register_now"), function () { IAS.unbindHere().then(function () { go("/reg"); }); }, "big"));
+    otherAccount(m);
   }
   function suspended() {
     var m = screen(T("app_name"), { plain: true });
     m.appendChild(el("div", { cls: "notice" }, [el("h2", { text: T("suspended_title") }), el("p", { text: T("suspended_body") })]));
     m.appendChild(btn(T("reactivate"), function () { go("/reactivate"); }, "big"));
+    otherAccount(m);
   }
 
   /* ------------------------------------------------------------------ registration */
@@ -377,7 +411,7 @@
       m.appendChild(el("div", { cls: "notice ok" }, [el("div", { cls: "tick", text: "✓" }), el("h2", { text: T(ME.version === "plus" ? "reg_done_plus" : "reg_done_basic") }),
         el("p", { text: T("id_issued") }), el("p", { cls: "code big", text: ME.id_no })]));
       m.appendChild(el("p", { cls: "hint", text: T("id_issued_note") }));
-      function enter(to) { UNLOCKED = true; ACT = Date.now(); try { sessionStorage.setItem("ias-unlock", "1"); } catch (e) { /* ignore */ } R = null; go(to); }
+      function enter(to) { unlocked(ME.id); R = null; go(to); }
       m.appendChild(btn(T("view_idcard"), function () { enter("/idcard"); }, "big"));
       m.appendChild(btn(T("start_using"), function () { enter("/home"); }, "big sec"));
     }
@@ -451,36 +485,48 @@
   }
   PAGES.rebind = function () {
     var m = screen(T("rebind"), { back: "/" });
+    transferIn(m);
+    m.appendChild(el("hr"));
+    idLogin(m, "rebind");
+  };
+  PAGES.signin = function () {   // log in to an account that is not on this device yet
+    var m = screen(T("signin"), { back: PENDING ? "/auth/" + PENDING : "/" });
+    idLogin(m, "signin");
+    m.appendChild(el("hr"));
+    transferIn(m);
+  };
+  function transferIn(m) {
     m.appendChild(el("h2", { text: T("transfer_in") }));
     var code = el("input", { type: "text", placeholder: "ABCD2345", autocomplete: "off" }), e1 = errBox();
     m.appendChild(field(T("transfer_code"), code)); m.appendChild(e1);
     m.appendChild(btn(T("transfer_claim"), function () {
-      IAS.claimTransfer(code.value.trim()).then(function (a) { if (!a) { e1.textContent = T("transfer_bad"); return; } ME = a; toast(T("transfer_ok")); go("/home"); });
-    }, "big"));
-    m.appendChild(el("hr"));
-    m.appendChild(el("h2", { text: T("rebind_title") }));
-    m.appendChild(el("p", { cls: "hint", text: T("rebind_lead") }));
+      IAS.claimTransfer(code.value.trim()).then(function (a) { if (!a) { e1.textContent = T("transfer_bad"); return; } ME = a; toast(T("transfer_ok")); signedIn(); });
+    }, "big sec"));
+  }
+  function idLogin(m, k) {
+    m.appendChild(el("h2", { text: T(k + "_title") }));
+    m.appendChild(el("p", { cls: "hint", text: T(k + "_lead") }));
     var id = el("input", { type: "text", placeholder: "A123456(7)", autocomplete: "off" }), e2 = errBox();
     m.appendChild(field(T("id_no"), id)); m.appendChild(e2);
     pinPad(m, function (pin) {
       var n = normId(id.value); if (!n) { e2.textContent = T("err_id"); return; }
-      var m2 = screen(T("rebind_title"), { back: "/rebind" });
+      var m2 = screen(T(k + "_title"), { back: function () { route(); } });
       m2.appendChild(el("p", { cls: "lead", text: T("rebind_face") }));
       faceStep(m2, function (res, fail) {
         IAS.rebind(n, pin, res.descriptor).then(function (a) {
           if (!a) { fail("rebind_bad"); return; }
-          ME = a; UNLOCKED = true; ACT = Date.now(); toast(T("rebind_ok")); go("/home");
+          ME = a; unlocked(a.id); toast(T(k + "_ok")); signedIn();
         });
       });
     }, { label: T("enter_pin") });
-  };
+  }
   PAGES.reactivate = function () {
     var m = screen(T("reactivate"), { back: "/" });
     m.appendChild(el("p", { cls: "lead", text: T("reactivate_lead") }));
     faceStep(m, function (res, fail) {
       IAS.faceCheck(res.descriptor).then(function (r) {
         if (!r.match) { fail("face_mismatch"); return; }
-        return IAS.reactivate(ME.id).then(function () { UNLOCKED = true; ACT = Date.now(); toast(T("reactivated")); go("/home"); });
+        return IAS.reactivate(ME.id).then(function () { unlocked(ME.id); toast(T("reactivated")); go("/home"); });
       });
     });
   };
@@ -699,7 +745,7 @@
     var m = screen(T("settings"), { back: "/me" });
     var items = [["login", T("set_login")], ["pin", T("set_pin")], ["transfer", T("set_transfer")], ["logs", T("set_logs")], ["logout", T("set_auto")], ["security", T("set_security")]];
     m.appendChild(el("ul", { cls: "menu" }, items.map(function (it) { return el("li", {}, [el("a", { href: "#/settings/" + it[0], text: it[1] })]); })));
-    m.appendChild(btn(T("logout"), function () { UNLOCKED = false; try { sessionStorage.removeItem("ias-unlock"); } catch (e) { /* ignore */ } route(); }, "sec big"));
+    m.appendChild(btn(T("logout"), function () { leave("/"); }, "sec big"));
   };
   var SET = {
     login: function () {
@@ -757,13 +803,13 @@
     },
     security: function () {
       var m = screen(T("set_security"), { back: "/settings" });
-      m.appendChild(btn(T("suspend"), function () { if (confirm(T("suspend_confirm"))) IAS.suspend(ME.id).then(function () { UNLOCKED = false; route(); }); }, "sec big"));
+      m.appendChild(btn(T("suspend"), function () { if (confirm(T("suspend_confirm"))) IAS.suspend(ME.id).then(function () { relock(); route(); }); }, "sec big"));
       m.appendChild(btn(T("deregister"), function () { go("/settings/dereg"); }, "danger big"));
     },
     dereg: function () {
       var m = screen(T("deregister"), { back: "/settings/security" });
       m.appendChild(el("div", { cls: "notice bad" }, [el("p", { text: T("dereg_lead") })]));
-      confirmAuth(m, function () { IAS.deleteAccount(ME.id).then(function () { ME = null; UNLOCKED = false; toast(T("dereg_done")); go("/"); }); });
+      confirmAuth(m, function () { IAS.deleteAccount(ME.id).then(function () { ME = null; relock(); toast(T("dereg_done")); go("/"); }); });
     }
   };
   PAGES.upgrade = function () {   // iAM Smart+ = facial identification again; the identity card was issued by iAM Smart
