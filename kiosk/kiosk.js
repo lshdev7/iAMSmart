@@ -248,12 +248,12 @@
     var m = frame("p_info", T("info_sex"), { back: infoName }), d = S.data, err = errBox(), f = field(T("dob"), d.dob), kb = el("div", {}), digits = (d.dob || "").replace(/\D/g, "");
     m.appendChild(el("p", { cls: "seglab", text: T("sex") })); m.appendChild(seg([["M", T("male")], ["F", T("female")]], d.sex, function (v) { d.sex = v; }));
     m.appendChild(f.box);
-    function draw() { f.i.value = digits.slice(0, 4) + (digits.length > 4 ? "-" + digits.slice(4, 6) : "") + (digits.length > 6 ? "-" + digits.slice(6, 8) : ""); }
+    function draw() { f.i.value = digits; }
     f.i.addEventListener("input", function () { digits = f.i.value.replace(/\D/g, "").slice(0, 8); draw(); });
     window.KKeyboard.build(kb, "num", { key: function (k) { if (digits.length < 8) digits += k; draw(); }, back: function () { digits = digits.slice(0, -1); draw(); } });
     m.appendChild(kb); m.appendChild(err);
     m.foot(btn(T("next"), function () {
-      var v = f.i.value;
+      var v = digits.slice(0, 4) + "-" + digits.slice(4, 6) + "-" + digits.slice(6);   // kept as YYYY-MM-DD
       if (!d.sex) { err.textContent = T("err_sex"); return; }
       if (!validDob(v)) { err.textContent = T("err_dob"); return; }
       var y = years(v); err.textContent = y < 11 ? T("err_11") : !S.minor && y < 18 ? T("err_adult") : S.minor && y >= 18 ? T("err_minor") : "";
@@ -270,8 +270,8 @@
   }
   function infoCheck() {
     var d = S.data, m = frame("p_info", T("info_check"), { back: infoOther });
-    var rows = [["surname", d.sur], ["given", d.giv], ["local", d.local || "–"], ["sex", T(d.sex === "M" ? "male" : "female")], ["dob", d.dob], ["pob", T("pob_" + d.pob)], ["nationality", T("nat_" + d.nat)], ["res", T("res_" + d.res)]], dl = el("dl", { cls: "kv" });
-    rows.forEach(function (r) { dl.appendChild(el("dt", { text: T(r[0]).replace(/\s*[(（]YYYY-MM-DD[)）]/, "") })); dl.appendChild(el("dd", { text: r[1] })); });
+    var rows = [["surname", d.sur], ["given", d.giv], ["local", d.local || "–"], ["sex", T(d.sex === "M" ? "male" : "female")], ["dob", d.dob.replace(/-/g, "")], ["pob", T("pob_" + d.pob)], ["nationality", T("nat_" + d.nat)], ["res", T("res_" + d.res)]], dl = el("dl", { cls: "kv" });
+    rows.forEach(function (r) { dl.appendChild(el("dt", { text: T(r[0]).replace(/\s*[(（]YYYYMMDD[)）]/, "") })); dl.appendChild(el("dd", { text: r[1] })); });
     m.appendChild(dl); m.foot(btn(T("edit"), infoName)); m.foot(btn(T("confirm"), face, "pri"));
   }
 

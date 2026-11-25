@@ -351,23 +351,26 @@
       var giv = el("input", { type: "text", value: d.giv || "", placeholder: "Yu Na", autocomplete: "given-name" });
       var loc = el("input", { type: "text", value: d.name_local || "", autocomplete: "off" });
       var sex = el("select", {}, [el("option", { value: "", text: T("choose") }), el("option", { value: "M", text: T("male") }), el("option", { value: "F", text: T("female") })]); sex.value = d.sex || "";
-      var dob = el("input", { type: "date", value: d.dob || "" });
+      var dob = el("input", { type: "text", inputmode: "numeric", autocomplete: "bday", placeholder: "YYYYMMDD", value: (d.dob || "").replace(/-/g, "") });   // typed as YYYYMMDD, kept as YYYY-MM-DD
+      function digits() { return dob.value.replace(/\D/g, "").slice(0, 8); }
+      function dobIso() { var x = digits(); return x.length === 8 ? x.slice(0, 4) + "-" + x.slice(4, 6) + "-" + x.slice(6) : ""; }
+      dob.addEventListener("input", function () { var x = digits(); if (dob.value !== x) dob.value = x; });
       var pob = el("select", {}, [el("option", { value: "BHG", text: T("pob_bhg") }), el("option", { value: "KR", text: T("pob_kr") }), el("option", { value: "XX", text: T("pob_other") })]); pob.value = d.pob || "BHG";
       var nat = el("select", {}, [el("option", { value: "KOR", text: T("nat_kor") }), el("option", { value: "OTH", text: T("nat_other") })]); nat.value = d.nationality || "KOR";
       var res = el("select", {}, ["A", "R", "U", "C"].map(function (k) { return el("option", { value: k, text: T("res_" + k) }); })); res.value = d.res_status || "A";
       var err = errBox();
-      [field(T("surname"), sur), field(T("given"), giv), field(T("name_local"), loc), field(T("sex"), sex), field(T("dob"), dob),
+      [field(T("surname"), sur), field(T("given"), giv), field(T("name_local"), loc), field(T("sex"), sex), field(T("dob") + " (YYYYMMDD)", dob),
        field(T("pob"), pob), field(T("nationality"), nat), field(T("res_status"), res)].forEach(function (f) { m.appendChild(f); });
       m.appendChild(err);
       m.appendChild(btn(T("next"), function () {
         if (!/^[A-Za-z][A-Za-z '\-]*$/.test(sur.value.trim()) || !/^[A-Za-z][A-Za-z '\-]*$/.test(giv.value.trim())) { err.textContent = T("err_name"); return; }
         if (!sex.value) { err.textContent = T("err_sex"); return; }
-        if (!validDob(dob.value)) { err.textContent = T("err_dob"); return; }
-        var a = ageOf(dob.value);
+        if (!validDob(dobIso())) { err.textContent = T("err_dob"); return; }
+        var a = ageOf(dobIso());
         if (a < 11) { err.textContent = T("err_age11"); return; }
         if (R.age === "adult" && a < 18) { err.textContent = T("err_adult"); return; }
         if (R.age === "minor" && a >= 18) { err.textContent = T("err_minor"); return; }
-        R.data = { sur: sur.value.trim(), giv: giv.value.trim(), name_local: loc.value.trim(), sex: sex.value, dob: dob.value, pob: pob.value,
+        R.data = { sur: sur.value.trim(), giv: giv.value.trim(), name_local: loc.value.trim(), sex: sex.value, dob: dobIso(), pob: pob.value,
                    nationality: nat.value, res_status: res.value, name_en: sur.value.trim().toUpperCase() + ", " + giv.value.trim().toUpperCase() };
         regGo("face");
       }, "big"));

@@ -60,7 +60,7 @@ S = {
     "info_name": ("Enter your name", "성명 입력", "輸入姓名"), "surname": ("Surname (in English)", "성(영문)", "姓氏（英文）"), "given": ("Given names (in English)", "이름(영문)", "名字（英文）"),
     "local": ("Name in Chinese / Korean characters", "한글·한자 성명", "中文／韓文姓名"),
     "info_sex": ("Select your sex and enter your date of birth", "성별 선택 및 생년월일 입력", "選擇性別及輸入出生日期"), "sex": ("Sex", "성별", "性別"), "male": ("Male", "남", "男"), "female": ("Female", "여", "女"),
-    "dob": ("Date of birth (YYYY-MM-DD)", "생년월일 (YYYY-MM-DD)", "出生日期（YYYY-MM-DD）"),
+    "dob": ("Date of birth (YYYYMMDD)", "생년월일 (YYYYMMDD)", "出生日期（YYYYMMDD）"),
     "info_other": ("Place of birth, nationality and residence status", "출생지·국적·거주 자격", "出生地點、國籍及居留身份"),
     "pob": ("Place of birth", "출생지", "出生地點"), "pob_BHG": ("Baekhyeon Hwarang", "백현화랑", "柏峴화랑"), "pob_KR": ("Republic of Korea (Mainland)", "대한민국(본토)", "大韓民國（內地）"), "pob_XX": ("Other", "기타", "其他"),
     "nationality": ("Nationality", "국적", "國籍"), "nat_KOR": ("Korean", "대한민국", "大韓民國"), "nat_OTH": ("Other", "기타", "其他"),
