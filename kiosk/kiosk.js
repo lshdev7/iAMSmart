@@ -48,9 +48,13 @@
 
   /* ------------------------------------------------------------------ machine */
   function stopCam() { if (faceRun) { faceRun.stop(); faceRun = null; } if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; } $("machine").classList.remove("lit"); }
-  function slot(on, out, fn) { $("slot").className = "slot" + (on ? " on" : "") + (out ? " out" : ""); slotFn = on ? fn : null; }
+  function slot(on, mode, fn) {   // the slot of the machine shows the same card
+    var c = $("card"); c.textContent = "";
+    if (on && S && S.face && mode !== "held") c.appendChild(el("img", { src: S.face, alt: "" }));
+    $("slot").className = "slot" + (on ? " on " + (mode || "") : ""); slotFn = on ? fn || null : null;
+  }
   $("slot").addEventListener("click", function () { var f = slotFn; if (f) f(); });
-  function reset() { gen++; timers.forEach(function (t) { clearInterval(t); clearTimeout(t); }); timers = []; stopCam(); slot(false, false); }
+  function reset() { gen++; timers.forEach(function (t) { clearInterval(t); clearTimeout(t); }); timers = []; stopCam(); slot(false); }
   function show(cls) { reset(); SCREEN.innerHTML = ""; var d = el("div", { cls: "scr lang-" + lang + " " + (cls || "") }); SCREEN.appendChild(d); lastAct = Date.now(); return d; }
   function signs() {
     document.documentElement.lang = lang; document.title = T("title");
@@ -90,7 +94,7 @@
     say(T("idle_title"));
     var iv = setInterval(function () { if (!h.m.isConnected) { clearInterval(iv); return; } n--; h.p.textContent = T("idle_body", { n: n }); if (n <= 0) { clearInterval(iv); leave(); } }, 1000);
   }
-  function leave() { if (S && S.id && !S.finished) IAS.kiosk.cancel(S.id).catch(function () { /* expires by itself */ }); S = null; home(); }
+  function leave() { if (S && S.card) IAS.kiosk.release().catch(function () { /* expires by itself */ }); if (S && S.id && !S.finished) IAS.kiosk.cancel(S.id).catch(function () { /* expires by itself */ }); S = null; home(); }
 
   /* ------------------------------------------------------------------ attract screen and home */
   function attract() {
@@ -132,7 +136,7 @@
   function fatal(key) { var m = frame("", T(key), { noExit: true }); m.foot(btn(T("finish"), leave, "pri")); }
   function begin(kind) {
     S = { kind: kind, data: {} };
-    S.steps = kind === "reg" ? ["p_scan", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : kind === "up" ? ["p_scan", "p_decl", "p_card", "p_face"] : ["p_card", "p_confirm", "p_face"];
+    S.steps = kind === "reg" ? ["p_scan", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : kind === "up" ? ["p_scan", "p_decl", "p_card", "p_face"] : ["p_no", "p_card", "p_confirm", "p_face"];
   }
   function readyList(keys) { return el("div", { cls: "ready" }, [el("b", { text: T("ready") }), el("ul", {}, keys.map(function (k) { return el("li", { text: T(k) }); }))]); }
 
@@ -271,44 +275,69 @@
     m.appendChild(dl); m.foot(btn(T("edit"), infoName)); m.foot(btn(T("confirm"), face, "pri"));
   }
 
-  /* ------------------------------------------------------------------ identity card (upgrade, suspension) */
-  function cardIn() {
-    var m = frame("p_card", T("card_in"), { back: S.kind === "sus" ? susIntro : null });
-    m.appendChild(el("p", { cls: "lead", text: T("card_in2") }));
-    function go() { if (S.kind === "sus") cardNo(); else cardRead(); }
-    m.appendChild(el("button", { type: "button", cls: "slotpic", "aria-label": T("card_tap"), click: go }, [el("i", { cls: "l" }), el("i", { cls: "m" }), el("i", { cls: "c" })]));
-    m.foot(btn(T("card_tap"), go, "pri")); slot(true, false, go);
+  /* ------------------------------------------------------------------ identity card: the holder's own card goes in and out of the slot */
+  function cardVals(a) {
+    var n = String(a.name_en).split(",");
+    return { idtype: "first", idno: a.id_no, issued: a.card_issued_at || a.created_at, status: a.res_status, kornat: a.nationality === "KOR" ? "KOR" : "OTH", surname: (n[0] || "").trim(), given: (n[1] || "").trim(), local: a.name_local || "",
+             sex: a.sex, dob: a.dob, pob: a.pob === "XX" ? "US" : a.pob, chgbirth: "N", chgname: "N", dobproof: "Y", office: "hq" };
   }
-  function cardNo() {   // without the phone the card is identified by its number
-    var m = frame("p_card", T("card_no2"), { back: cardIn }), f = field(T("card_no"), S.idno), kb = el("div", {}), err = errBox();
+  function blank() { return new Promise(function (ok) { var c = el("canvas", { width: 300, height: 380 }), x = c.getContext("2d"); x.fillStyle = "#e4ebe8"; x.fillRect(0, 0, 300, 380); c.toBlob(ok, "image/jpeg"); }); }
+  function cardFace(a, photo) {   // -> data URL of the front of the card
+    return (photo ? Promise.resolve(photo) : IAS.kiosk.photo(a.account_id)).then(function (b) { return b || blank(); }).then(function (b) { return window.BHGIdCardImages(cardVals(a), b); })
+      .then(function (c) { return c.front.toDataURL("image/jpeg", 0.92); });
+  }
+  /* picture of the slot with the whole card: mode "in" = card waits outside, "out" = the card comes out */
+  function bay(m, mode, label, next) {
+    var g = gen, done = false, img = el("img", { src: S.face, alt: "" });
+    var b = el("button", { type: "button", cls: "bay " + mode, "aria-label": label, click: act }, [el("i", { cls: "l" }), el("i", { cls: "m" }), el("span", { cls: "win" }, [img])]);
+    m.appendChild(b); m.foot(btn(label, act, "pri"));
+    slot(true, mode, act);
+    function act() {
+      if (done || g !== gen) return; done = true;
+      b.classList.add(mode === "in" ? "gone" : "taken"); $("slot").classList.add(mode === "in" ? "gone" : "taken");
+      later(mode === "in" ? 1500 : 800, next);
+    }
+  }
+  function cardIn() {
+    var m = frame("p_card", T("card_in"), { back: S.kind === "sus" ? cardNo : null }), g = gen;
+    m.appendChild(el("p", { cls: "lead", text: T("card_in2") }));
+    if (S.face) { bay(m, "in", T("card_tap"), cardRead); return; }
+    var sp = el("div", { cls: "spin" }); m.appendChild(sp);
+    cardFace(S.card).then(function (u) { if (g !== gen) return; S.face = u; sp.remove(); bay(m, "in", T("card_tap"), cardRead); }, function () { if (g === gen) fatal("e_load"); });
+  }
+  function cardNo() {   // without the phone: the number first, then the card of that number
+    S.face = S.card = null;
+    var m = frame("p_no", T("card_no2"), { back: susIntro }), g = gen, f = field(T("card_no"), S.idno), kb = el("div", {}), err = errBox();
     f.i.setAttribute("placeholder", "A123456(7)"); m.appendChild(f.box); m.appendChild(kb); m.appendChild(err);
     f.i.addEventListener("input", function () { f.i.value = f.i.value.toUpperCase(); });
     window.KKeyboard.build(kb, "id", { key: function (k) { if (f.i.value.length < 11) f.i.value += k; }, back: function () { f.i.value = f.i.value.slice(0, -1); } });
     f.i.focus();
-    m.foot(btn(T("confirm"), function () {
+    var ok = m.foot(btn(T("confirm"), function () {
       var x = /^([A-Z]{1,2})(\d{6})\(?([0-9A])\)?$/.exec(f.i.value.replace(/\s/g, "").toUpperCase());
       if (!x) { err.textContent = T("err_card"); return; }
-      S.idno = x[1] + x[2] + "(" + x[3] + ")"; cardRead();
+      S.idno = x[1] + x[2] + "(" + x[3] + ")"; ok.disabled = true; err.textContent = "";
+      IAS.kiosk.card(S.idno).then(function (r) {
+        if (g !== gen) return;
+        if (r.error) { ok.disabled = false; err.textContent = T(r.error === "too_many" ? "err_card_many" : "err_card_unknown"); return; }
+        S.card = r; S.idno = r.id_no; cardIn();
+      }, function () { if (g === gen) { ok.disabled = false; err.textContent = T("e_load"); } });
     }, "pri"));
   }
   function cardRead() {
     var m = frame("p_card", T("card_reading"), { noIdle: true });
-    m.appendChild(el("div", { cls: "spin" })); m.appendChild(el("p", { cls: "lead center", text: T("card_reading2") }));
+    m.appendChild(el("div", { cls: "spin" })); m.appendChild(el("p", { cls: "lead center", text: T("card_reading2") })); slot(true, "held");
     later(3500, function () {
-      var c = S.kind === "up" ? S.card : null, m2 = frame("p_card", T("card_ok"));
+      var m2 = frame("p_card", T("card_ok")); slot(true, "held");
       m2.appendChild(el("div", { cls: "tick", text: "✓" }));
-      var dl = el("dl", { cls: "kv" });
-      if (c) { dl.appendChild(el("dt", { text: T("card_holder") })); dl.appendChild(el("dd", { text: c.surname + " ***" })); }
-      dl.appendChild(el("dt", { text: T("card_no") })); dl.appendChild(el("dd", { text: c ? c.id_no : S.idno }));
-      m2.appendChild(dl); m2.foot(btn(T("next"), cardOut, "pri"));
+      m2.appendChild(el("dl", { cls: "kv" }, [el("dt", { text: T("card_holder") }), el("dd", { text: S.card.name_en }), el("dt", { text: T("card_no") }), el("dd", { text: S.card.id_no })]));
+      m2.foot(btn(T("next"), cardOut, "pri"));
     });
   }
   function cardOut() {
-    var m = frame("p_card", T("card_out"));
+    var m = frame("p_card", T("card_out"), { noExit: true });
+    if (S.kind === "reg") SCREEN.querySelectorAll(".rail li").forEach(function (l) { l.className = "ok"; });
     m.appendChild(el("p", { cls: "lead", text: T("card_out2") }));
-    function go() { if (S.kind === "sus") susConfirm(); else face(); }
-    m.appendChild(el("button", { type: "button", cls: "slotpic out", "aria-label": T("card_taken"), click: go }, [el("i", { cls: "l" }), el("i", { cls: "m" }), el("i", { cls: "c" })]));
-    m.foot(btn(T("card_taken"), go, "pri")); slot(true, true, go);
+    bay(m, "out", T("card_taken"), function () { if (S.kind === "sus") susConfirm(); else if (S.kind === "up") face(); else done(); });
   }
 
   /* ------------------------------------------------------------------ facial recognition */
@@ -362,7 +391,9 @@
     var m = frame("p_bio", T("phone_title"), { noIdle: true, alsoOn: ["p_pin", "p_email"] }), g = gen;
     m.appendChild(el("p", { cls: "lead", text: T("phone_lead") }));
     m.appendChild(el("div", { cls: "qrrow phone3" }, [el("ol", {}, ["phone_bio", "phone_pin", "phone_email"].map(function (x) { return el("li", { text: T(x) }); }))]));
-    watch(g, function (s) { if (s.status !== "done" || !s.account) return false; S.finished = true; S.account = s.account; done(); return true; });
+    watch(g, function (s) { if (s.status !== "done" || !s.account) return false; S.finished = true; S.account = S.card = s.account;
+      cardFace(s.account, S.photo).then(function (u) { if (g === gen) { S.face = u; cardOut(); } }, function () { if (g === gen) done(); });
+      return true; });
   }
   function done() {
     var m = frame("", "", { noExit: true }); SCREEN.querySelectorAll(".rail li").forEach(function (l) { l.className = "ok"; });
@@ -371,17 +402,15 @@
     if (S.kind === "up") m.appendChild(el("p", { cls: "lead center", text: T("done_up2") }));
     if (S.kind === "sus") m.appendChild(el("p", { cls: "lead center", text: T("sus_lead") }));
     if (S.kind === "reg") {
-      var a = S.account, n = String(a.name_en).split(", "), ph = S.photo, g = gen;
-      var vals = { idtype: "first", idno: a.id_no, issued: a.card_issued_at || a.created_at, status: a.res_status, kornat: a.nationality === "KOR" ? "KOR" : "OTH", surname: n[0], given: n[1] || "", local: a.name_local || "", sex: a.sex, dob: a.dob, pob: a.pob === "XX" ? "US" : a.pob, chgbirth: "N", chgname: "N", dobproof: "Y", office: "hq" };
-      var pic = el("div", {}); m.appendChild(el("div", { cls: "done" }, [pic, el("div", {}, [el("p", { cls: "seglab", text: T("card_no") }), el("p", { cls: "no", text: a.id_no }), el("p", { cls: "lead", text: T("done_card") })])]));
-      window.BHGIdCardImages(vals, ph).then(function (c) { if (g === gen) pic.appendChild(c.front); }, function () { /* card picture not available */ });
-      m.foot(btn(T("print"), function () { window.BHGIdCardPDF(vals, ph); })); slot(true, true, function () { slot(false, false); });
+      var a = S.account, ph = S.photo;
+      m.appendChild(el("div", { cls: "done" }, [el("div", {}, [S.face ? el("img", { src: S.face, alt: "" }) : null]), el("div", {}, [el("p", { cls: "seglab", text: T("card_no") }), el("p", { cls: "no", text: a.id_no }), el("p", { cls: "lead", text: T("done_card") })])]));
+      m.foot(btn(T("print"), function () { window.BHGIdCardPDF(cardVals(a), ph); }));
     }
     m.foot(btn(T("finish"), leave, "pri"));
   }
 
   /* ------------------------------------------------------------------ suspension */
-  function susIntro() { begin("sus"); var m = frame("", T("sus_title")); m.appendChild(el("p", { cls: "lead", text: T("sus_lead") })); m.appendChild(readyList(["ready_card"])); m.foot(btn(T("cont"), cardIn, "red")); }
+  function susIntro() { begin("sus"); var m = frame("", T("sus_title")); m.appendChild(el("p", { cls: "lead", text: T("sus_lead") })); m.appendChild(readyList(["ready_card"])); m.foot(btn(T("cont"), cardNo, "red")); }
   function susConfirm() {
     var m = frame("p_confirm", T("sus_confirm"));
     m.appendChild(el("dl", { cls: "kv" }, [el("dt", { text: T("card_no") }), el("dd", { text: S.idno })])); m.appendChild(el("p", { cls: "lead", text: T("sus_lead") }));

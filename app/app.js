@@ -222,6 +222,7 @@
       if (me.status === "invalid") return invalid();
       if (me.status === "suspended" && page !== "reactivate") return suspended();
       if (UNLOCKED !== me.id && page !== "reactivate") return lock(function () { route(); });
+      if (me.old_id_no && !me.id_ack_at && UNLOCKED === me.id) return idChanged();
       (PAGES[page] || PAGES.home)(arg);
     });
   }
@@ -265,6 +266,26 @@
     }, { label: T("enter_pin") });
     m.appendChild(btn(T("forgot_pin"), function () { go("/rebind"); }, "link"));
     otherAccount(m);
+  }
+  function idChanged() {   // the number was changed: shown once after login, then only the new number is accepted
+    var m = screen(T("idchg_title"), { plain: true, lang: true });
+    m.appendChild(el("p", { cls: "lead", text: T("idchg_lead") }));
+    m.appendChild(el("dl", { cls: "kv" }, [el("dt", { text: T("idchg_old") }), el("dd", {}, [el("s", { text: ME.old_id_no })]), el("dt", { text: T("idchg_new") }), el("dd", {}, [el("b", { text: ME.id_no })])]));
+    var holder = el("div", { cls: "idcard" }); m.appendChild(holder);
+    m.appendChild(el("h2", { text: T("idchg_todo") }));
+    m.appendChild(el("ol", { cls: "todo" }, ["idchg_1", "idchg_2", "idchg_3"].map(function (k) { return el("li", { text: T(k) }); })));
+    var pdf = btn(T("download_pdf"), function () { window.BHGIdCardPDF(cardVals(), photo); }, "sec big"), photo = null; pdf.disabled = true; m.appendChild(pdf);
+    IAS.file(ME.id, "face").then(function (b) {
+      photo = b; if (!b || !window.BHGIdCardImages) return null;
+      return window.BHGIdCardImages(cardVals(), b).then(function (c) { c.front.className = "cardimg"; holder.appendChild(c.front); pdf.disabled = false; });
+    }).catch(function () { /* the number itself is shown above */ });
+    var cb = el("input", { type: "checkbox" }), err = errBox();
+    m.appendChild(el("label", { cls: "chk" }, [cb, el("span", { text: T("idchg_agree") })])); m.appendChild(err);
+    m.appendChild(btn(T("confirm"), function () {
+      if (!cb.checked) { err.textContent = T("err_agree"); return; }
+      var b = this; b.disabled = true;
+      IAS.ackId().then(function () { toast(T("idchg_ok")); route(); }, function () { b.disabled = false; err.textContent = T("load_failed"); });
+    }, "big"));
   }
   function invalid() {
     var m = screen(T("app_name"), { plain: true });
@@ -516,6 +537,12 @@
         IAS.rebind(n, pin, res.descriptor).then(function (a) {
           if (!a) { fail("rebind_bad"); return; }
           ME = a; unlocked(a.id); toast(T(k + "_ok")); signedIn();
+        }, function (x) {   // former number after the notice: the holder proved the identity, so the new number is told
+          var c = /^id_changed:(.+)$/.exec(x && x.message || "");
+          if (!c) { fail("rebind_bad"); return; }
+          var m3 = screen(T("idchg_title"), { back: function () { route(); } });
+          m3.appendChild(el("div", { cls: "notice" }, [el("p", { text: T("idchg_use_new") }), el("p", { cls: "code big", text: c[1] })]));
+          m3.appendChild(btn(T("back"), function () { route(); }, "big"));
         });
       });
     }, { label: T("enter_pin") });
@@ -584,13 +611,14 @@
     m.appendChild(field(T("code_manual"), code));
     m.appendChild(btn(T("confirm"), function () { handle(code.value); }, "big"));
   }
+  function mailText(t) { return /^@\w+$/.test(t) ? T(t.slice(1)) : t; }   // messages written by the server
   PAGES.inbox = function () {
     var m = screen(T("nav_inbox"), { nav: "inbox" });
     IAS.inbox(ME.id).then(function (list) {
       if (!list.length) { m.appendChild(el("p", { cls: "empty", text: T("inbox_empty") })); return; }
       var ul = el("ul", { cls: "msgs" });
       list.forEach(function (x) {
-        var li = el("li", { cls: x.read ? "" : "unread" }, [el("b", { text: x.title }), el("small", { text: fmtTime(x.at) }), el("p", { text: x.body })]);
+        var li = el("li", { cls: x.read ? "" : "unread" }, [el("b", { text: mailText(x.title) }), el("small", { text: fmtTime(x.at) }), el("p", { text: mailText(x.body) })]);
         li.addEventListener("click", function () { IAS.markRead(x.n); li.className = ""; });
         ul.appendChild(li);
       });

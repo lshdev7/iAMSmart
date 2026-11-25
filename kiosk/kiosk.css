@@ -34,9 +34,9 @@ body{overflow-x:hidden}
 .slot.on{cursor:pointer}.slot.on .led,.chipsign.on{animation:blink 1s infinite}
 .slot.on .led{background:#2bff6a;box-shadow:0 0 18px 6px rgba(43,255,106,.7)}
 @keyframes blink{50%{opacity:.25}}
-.slot .card{position:absolute;left:48px;width:134px;top:56px;height:0;background:linear-gradient(135deg,#e9f6e4,#bfe0d3);border-radius:0 0 8px 8px;box-shadow:0 4px 8px rgba(0,0,0,.3);overflow:hidden;transition:height .9s ease;z-index:1}
-.slot .card::after{content:"";position:absolute;left:52px;top:34px;width:30px;height:24px;border-radius:4px;background:#d8a73f}
-.slot.out .card{height:92px}
+.slot .card{position:absolute;left:48px;width:134px;top:56px;height:85px;overflow:hidden;z-index:3;border-radius:0 0 6px 6px;pointer-events:none}.slot .card img{display:block;width:134px;height:85px;border-radius:6px}
+.slot.in .card img{animation:nudge 1.6s ease-in-out infinite}.slot.in.gone .card img{animation:cardgo 1.4s ease-in forwards}.slot.out .card img{animation:cardcome 1.3s ease-out both}.slot.out.taken .card{overflow:visible}.slot.out.taken .card img{animation:cardtake .7s ease-in forwards}
+@keyframes nudge{50%{transform:translateY(-8%)}}@keyframes cardgo{from{transform:translateY(0)}to{transform:translateY(-104%)}}@keyframes cardcome{from{transform:translateY(-104%)}to{transform:translateY(0)}}@keyframes cardtake{to{transform:translateY(70%);opacity:0}}
 .chipsign{margin:14px auto 0;width:120px;background:#eef6d8;border-radius:8px;text-align:center;padding:6px 4px;color:#333}
 .chipsign i{display:block;width:34px;height:28px;margin:0 auto 2px;border-radius:4px;background:#e8831c}.chipsign small{font-size:17px;display:block;line-height:1.1}
 .scanner{position:absolute;top:500px;left:50%;margin-left:-62px;width:124px;height:60px;background:#15161a;border:6px solid #3a3835}
@@ -103,12 +103,11 @@ body.only #machine{width:1280px;height:720px}
 .seg{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 14px}.seg button{border:2px solid #b9c1cd;background:#fff;border-radius:12px;padding:0 24px;height:58px;font-size:23px;cursor:pointer}.seg button.on{border-color:var(--teal);background:var(--teal);color:#fff;font-weight:700}
 .seglab{font-size:20px;color:#666;margin:0}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:10px 34px;font-size:25px;margin:8px 0}.kv dt{color:#777}.kv dd{margin:0;font-weight:700;color:#333}
-.slotpic{position:relative;margin:30px auto 0;width:520px;height:270px;background:#c5c1b9;border-radius:26px;border:0;cursor:pointer;display:block;overflow:hidden}
-.slotpic .m{position:absolute;left:100px;right:100px;top:78px;height:20px;background:#111;border-radius:10px;z-index:2}.slotpic .l{position:absolute;left:180px;right:180px;top:36px;height:14px;border-radius:7px;background:#2bff6a;box-shadow:0 0 20px 6px rgba(43,255,106,.7);animation:blink 1s infinite}
-.slotpic .c{position:absolute;left:150px;width:220px;height:160px;top:96px;border-radius:12px;background:linear-gradient(135deg,#eef8ea,#b9ddcf);box-shadow:0 6px 14px rgba(0,0,0,.25);animation:cin 2.4s infinite}.slotpic .c::before{content:"▲";position:absolute;left:0;right:0;top:8px;text-align:center;color:#e8831c;font-size:30px}.slotpic .c::after{content:"";position:absolute;left:85px;top:58px;width:52px;height:42px;border-radius:7px;background:#d8a73f}
-.slotpic::before{content:"";position:absolute;left:0;right:0;top:0;height:88px;background:#c5c1b9;z-index:1}.slotpic .m,.slotpic .l{z-index:3}
-.slotpic.out .c{animation-name:cout}
-@keyframes cin{0%{transform:translateY(90px)}70%,100%{transform:translateY(-75px)}}@keyframes cout{0%{transform:translateY(-75px)}60%,100%{transform:translateY(20px)}}
+.bay{position:relative;margin:0 auto;width:640px;height:396px;background:#c5c1b9;border-radius:26px;border:0;cursor:pointer;display:block;padding:0}
+.bay .l{position:absolute;left:220px;right:220px;top:14px;height:12px;border-radius:6px;background:#2bff6a;box-shadow:0 0 20px 6px rgba(43,255,106,.7);animation:blink 1s infinite}.bay .m{position:absolute;left:54px;right:54px;top:40px;height:18px;background:#111;border-radius:9px;z-index:2}
+.bay .win{position:absolute;left:78px;width:484px;top:50px;height:330px;overflow:hidden}.bay img{display:block;width:484px;height:auto;margin-top:8px;border-radius:18px;box-shadow:0 6px 14px rgba(0,0,0,.3)}
+.bay.in img{animation:nudge 1.6s ease-in-out infinite}.bay.in.gone img{animation:cardgo2 1.4s ease-in forwards}.bay.out img{animation:cardcome2 1.3s ease-out both}.bay.out.taken .win{overflow:visible}.bay.out.taken img{animation:cardtake .7s ease-in forwards}
+@keyframes cardgo2{from{transform:translateY(0)}to{transform:translateY(-112%)}}@keyframes cardcome2{from{transform:translateY(-112%)}to{transform:translateY(0)}}
 .spin{width:110px;height:110px;border-radius:50%;border:12px solid #d5dce8;border-top-color:var(--teal);animation:rot 1s linear infinite;margin:70px auto 30px}@keyframes rot{to{transform:rotate(360deg)}}
 .center{text-align:center}
 .facebox{position:relative;width:600px;height:440px;margin:0 auto;background:#111;border-radius:18px;overflow:hidden}.facebox video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
@@ -116,7 +115,7 @@ body.only #machine{width:1280px;height:720px}
 .facetip{text-align:center;font-size:27px;font-weight:700;margin:12px 0 0;min-height:40px;color:#2c2c31}
 .dots3{display:flex;gap:12px;justify-content:center;margin-top:6px}.dots3 b{width:70px;height:8px;border-radius:4px;background:#ccd3df}.dots3 b.on{background:var(--green)}
 .tick{width:104px;height:104px;border-radius:50%;background:var(--green);color:#fff;font-size:64px;line-height:104px;text-align:center;margin:6px auto 14px}
-.done{display:flex;gap:40px;align-items:center}.done canvas{width:430px;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,.2);display:block}
+.done{display:flex;gap:40px;align-items:center}.done img{width:430px;border-radius:14px;box-shadow:0 8px 22px rgba(0,0,0,.2);display:block}
 .done .no{font-size:42px;font-weight:700;letter-spacing:2px;color:var(--blue);margin:6px 0}
 .phone3 li{font-size:27px!important}
 .modal{position:absolute;inset:0;background:rgba(15,20,30,.55);display:flex;align-items:center;justify-content:center;z-index:20}.modal>div{background:#fff;border-radius:22px;padding:44px 60px;text-align:center;max-width:860px}.modal h2{margin:0 0 12px;font-size:36px}.modal p{font-size:27px;margin:0 0 28px}.modal .kb{margin:0 10px}
