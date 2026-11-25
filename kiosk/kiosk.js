@@ -136,7 +136,7 @@
   function fatal(key) { var m = frame("", T(key), { noExit: true }); m.foot(btn(T("finish"), leave, "pri")); }
   function begin(kind) {
     S = { kind: kind, data: {} };
-    S.steps = kind === "reg" ? ["p_scan", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : kind === "up" ? ["p_scan", "p_decl", "p_card", "p_face"] : ["p_no", "p_card", "p_confirm", "p_face"];
+    S.steps = kind === "reg" ? ["p_scan", "p_res", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : kind === "up" ? ["p_scan", "p_decl", "p_card", "p_face"] : ["p_no", "p_card", "p_confirm", "p_face"];
   }
   function readyList(keys) { return el("div", { cls: "ready" }, [el("b", { text: T("ready") }), el("ul", {}, keys.map(function (k) { return el("li", { text: T(k) }); }))]); }
 
@@ -148,7 +148,7 @@
       el("button", { type: "button", cls: "big", text: T("age_adult"), click: function () { S.minor = false; start(); } }),
       el("button", { type: "button", cls: "big b2", click: function () { S.minor = true; start(); } }, [T("age_minor"), el("small", { text: T("age_minor2") })])]));
     m.appendChild(readyList(["ready_phone", "ready_email", "ready_evisa"]));
-    function start() { S.steps = S.minor ? ["p_scan", "p_parent", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : S.steps; scan(); }
+    function start() { S.steps = S.minor ? ["p_scan", "p_res", "p_parent", "p_decl", "p_info", "p_face", "p_bio", "p_pin", "p_email"] : S.steps; scan(); }
   }
   function upIntro() {
     begin("up");
@@ -197,8 +197,40 @@
     var m = frame("p_scan", "");
     m.appendChild(el("div", { cls: "tick", text: "✓" }));
     m.appendChild(el("h2", { cls: "center", text: T("scan_ok") })); say(T("scan_ok"));
+    if (S.kind === "reg") { later(1600, resPick); return; }
     if (!S.minor) { later(1600, decl); return; }
     m.appendChild(el("p", { cls: "lead center", text: T("par_next") })); m.foot(btn(T("cont"), parent, "pri"));
+  }
+  /* residence status first; C and U: the e-Visa file is provided on the phone before anything else */
+  function resPick() {
+    var m = frame("p_res", T("res_title")), g = gen, err = errBox();
+    S.person = null; S.data = {};
+    m.appendChild(el("div", { cls: "choose quad" }, ["A", "R", "U", "C"].map(function (k) {
+      return el("button", { type: "button", cls: "big" + (/[CU]/.test(k) ? " b2" : ""), click: function () {
+        IAS.kiosk.res(S.id, k).then(function (r) {
+          if (g !== gen) return;
+          if (r.error) { fatal("e_expired"); return; }
+          S.data.res = k; if (/[CU]/.test(k)) evisaWait(); else afterRes();
+        }, function () { if (g === gen) err.textContent = T("e_load"); });
+      } }, [T("res_" + k), /[CU]/.test(k) ? el("small", { text: T("res_need") }) : null]);
+    }))); m.appendChild(err);
+  }
+  function evisaWait() {
+    var m = frame("p_res", T("evisa_wait"), { noIdle: true, back: resPick }), g = gen;
+    m.appendChild(el("div", { cls: "spin" })); m.appendChild(el("p", { cls: "lead center", text: T("evisa_wait2") }));
+    watch(g, function (s) {
+      if (!s.evisa_ok || !s.person) return false;
+      var n = s.person.name.split(","); S.person = s.person;
+      S.data = { res: S.data.res, sur: n[0].trim(), giv: (n[1] || "").trim(), local: s.person.local || "", dob: s.person.dob };
+      afterRes(); return true;
+    });
+  }
+  function afterRes() {
+    var m = frame("p_res", "");
+    m.appendChild(el("div", { cls: "tick", text: "✓" })); m.appendChild(el("h2", { cls: "center", text: T(S.person ? "evisa_ok" : "res_ok") }));
+    if (S.person) m.appendChild(el("dl", { cls: "kv" }, [el("dt", { text: T("card_holder") }), el("dd", { text: S.person.name }), el("dt", { text: T("dob").replace(/\s*[(（]YYYYMMDD[)）]/, "") }), el("dd", { text: S.person.dob.replace(/-/g, "") })]));
+    if (S.minor) m.appendChild(el("p", { cls: "lead center", text: T("par_next") }));
+    m.foot(btn(T("cont"), S.minor ? parent : decl, "pri"));
   }
   function parent() {
     var m = frame("p_parent", T("par_title"), { noIdle: true }), g = gen, end = Date.now() + 14 * 60000;
@@ -219,7 +251,10 @@
   function infoName() {
     var m = frame("p_info", T("info_name")), d = S.data, a = field(T("surname"), d.sur), b = field(T("given"), d.giv), c = field(T("local"), d.local), err = errBox(), kb = el("div", {}), cur = null, jamo = d.jamo || [];
     c.i.removeAttribute("inputmode"); c.box.className += " wide";
+    var lockC = S.person && S.person.local;
+    if (S.person) { [a, b].concat(lockC ? [c] : []).forEach(function (x) { x.i.readOnly = true; }); m.insertBefore(el("p", { cls: "seglab", text: T("evisa_filled") }), null); }   // as on the e-Visa
     function focus(f) {
+      if (f.i.readOnly) return;
       [a, b, c].forEach(function (x) { x.i.classList.toggle("cur", x === f); }); cur = f;
       if (f === c) {
         if (lang === "zh-hant" || lang === "zh-hans") { kb.innerHTML = ""; return; }   // Chinese: the device's own input method
@@ -230,7 +265,7 @@
     c.i.addEventListener("input", function () { jamo = c.i.value.split(""); });
     [a, b].forEach(function (x) { x.i.addEventListener("input", function () { x.i.value = x.i.value.toUpperCase(); }); });
     m.appendChild(el("div", { cls: "two" }, [a.box, b.box, c.box])); m.appendChild(kb); m.appendChild(err);
-    focus(a); a.i.focus();
+    if (!S.person) { focus(a); a.i.focus(); } else if (!lockC) { focus(c); c.i.focus(); }
     m.foot(btn(T("next"), function () {
       var re = /^[A-Z][A-Z '\-]*$/, s = a.i.value.trim().toUpperCase(), g = b.i.value.trim().toUpperCase();
       if (!re.test(s) || !re.test(g)) { err.textContent = T("err_name"); return; }
@@ -249,8 +284,9 @@
     m.appendChild(el("p", { cls: "seglab", text: T("sex") })); m.appendChild(seg([["M", T("male")], ["F", T("female")]], d.sex, function (v) { d.sex = v; }));
     m.appendChild(f.box);
     function draw() { f.i.value = digits; }
+    draw(); if (S.person) f.i.readOnly = true;
     f.i.addEventListener("input", function () { digits = f.i.value.replace(/\D/g, "").slice(0, 8); draw(); });
-    window.KKeyboard.build(kb, "num", { key: function (k) { if (digits.length < 8) digits += k; draw(); }, back: function () { digits = digits.slice(0, -1); draw(); } });
+    if (!S.person) window.KKeyboard.build(kb, "num", { key: function (k) { if (digits.length < 8) digits += k; draw(); }, back: function () { digits = digits.slice(0, -1); draw(); } });
     m.appendChild(kb); m.appendChild(err);
     m.foot(btn(T("next"), function () {
       var v = digits.slice(0, 4) + "-" + digits.slice(4, 6) + "-" + digits.slice(6);   // kept as YYYY-MM-DD
@@ -262,8 +298,8 @@
     }, "pri"));
   }
   function infoOther() {
-    var d = S.data, m = frame("p_info", T("info_other"), { back: infoSex }); d.pob = d.pob || "BHG"; d.nat = d.nat || "KOR"; d.res = d.res || "A";
-    [["pob", "pob", ["BHG", "KR", "XX"], "pob_"], ["nationality", "nat", ["KOR", "OTH"], "nat_"], ["res", "res", ["A", "R", "U", "C"], "res_"]].forEach(function (x) {
+    var d = S.data, m = frame("p_info", T("info_other"), { back: infoSex }); d.pob = d.pob || "BHG"; d.nat = d.nat || "KOR";
+    [["pob", "pob", ["BHG", "KR", "XX"], "pob_"], ["nationality", "nat", ["KOR", "OTH"], "nat_"]].forEach(function (x) {
       m.appendChild(el("p", { cls: "seglab", text: T(x[0]) })); m.appendChild(seg(x[2].map(function (v) { return [v, T(x[3] + v)]; }), d[x[1]], function (v) { d[x[1]] = v; }));
     });
     m.foot(btn(T("next"), infoCheck, "pri"));
@@ -369,7 +405,7 @@
   }
   function faceFail(k) {
     var key = /^e_/.test(k) ? k : "e_face_" + k, m = frame("p_face", T(key));
-    if (key === "e_expired" || key === "e_too_many" || key === "e_face_already_registered" || key === "e_sus") { m.foot(btn(T("finish"), leave, "pri")); return; }
+    if (key === "e_expired" || key === "e_too_many" || key === "e_face_already_registered" || key === "e_sus" || key === "e_evisa") { m.foot(btn(T("finish"), leave, "pri")); return; }
     if (key === "e_bad_particulars") { m.foot(btn(T("edit"), infoName, "pri")); return; }
     m.appendChild(el("p", { cls: "lead", text: T("face_note") })); m.foot(btn(T("retry"), face, "pri"));
   }
@@ -381,7 +417,7 @@
       : IAS.kiosk.submit(S.id, S.kind === "reg" ? { name_en: d.sur + ", " + d.giv, name_local: d.local, sex: d.sex, dob: d.dob, pob: d.pob, nationality: d.nat, res_status: d.res } : {}, res.descriptor, S.kind === "reg" ? url : "");
     job.then(function (r) {
       S.desc = null; if (g !== gen) return;
-      if (r.error) { faceFail({ face_mismatch: "e_face_mismatch", face_already_registered: "e_face_already_registered", sus: "e_sus", too_many: "e_too_many", expired: "e_expired", bad_particulars: "e_bad_particulars" }[r.error] || "error"); return; }
+      if (r.error) { faceFail({ face_mismatch: "e_face_mismatch", face_already_registered: "e_face_already_registered", sus: "e_sus", too_many: "e_too_many", expired: "e_expired", bad_particulars: "e_bad_particulars" }[r.error] || (/^evisa_/.test(r.error) ? "e_evisa" : "error")); return; }
       if (S.kind === "reg") phone(); else { S.finished = true; done(); }
     }, function () { if (g === gen) faceFail("e_load"); });
   }
@@ -390,7 +426,7 @@
   function phone() {
     var m = frame("p_bio", T("phone_title"), { noIdle: true, alsoOn: ["p_pin", "p_email"] }), g = gen;
     m.appendChild(el("p", { cls: "lead", text: T("phone_lead") }));
-    m.appendChild(el("div", { cls: "qrrow phone3" }, [el("ol", {}, (/[CU]/.test(S.data.res || "") ? ["phone_evisa"] : []).concat(["phone_bio", "phone_pin", "phone_email"]).map(function (x) { return el("li", { text: T(x) }); }))]));
+    m.appendChild(el("div", { cls: "qrrow phone3" }, [el("ol", {}, ["phone_bio", "phone_pin", "phone_email"].map(function (x) { return el("li", { text: T(x) }); }))]));
     watch(g, function (s) { if (s.status !== "done" || !s.account) return false; S.finished = true; S.account = S.card = s.account;
       cardFace(s.account, S.photo).then(function (u) { if (g === gen) { S.face = u; cardOut(); } }, function () { if (g === gen) done(); });
       return true; });
