@@ -666,8 +666,11 @@
     IAS.myDocuments().then(function (list) {
       (list || []).forEach(function (r) {
         var card = el("div", { cls: "doc" }, [el("small", { text: r.mode === "ext" ? T("doc_cos") : T("doc_entry") }), el("b", { text: docTitle(r) }), el("p", { text: r.ref })]);
-        card.appendChild(btn(T("show_qr"), function () { card.appendChild(el("div", { cls: "qrbox" }, [qrCanvas("BHG-EVISA|" + r.ref + "|" + ME.name_en + "|" + ME.dob, 220)])); this.remove(); }, "sec"));
-        if (window.BHGEVisaPDF) card.appendChild(btn(T("download_pdf"), function () { window.BHGEVisaPDF(r, ME.dob); }, "sec"));
+        card.appendChild(btn(T("show_qr"), function () {
+          var b = this; b.disabled = true;
+          IAS.records.evisaToken(r.ref, ME.dob).then(function (x) { card.appendChild(el("div", { cls: "qrbox" }, [qrCanvas(x.token, 220)])); b.remove(); }).catch(function () { b.disabled = false; toast(T("load_failed")); });
+        }, "sec"));
+        if (window.BHGEVisaPDF) card.appendChild(btn(T("download_pdf"), function () { var b = this; b.disabled = true; window.BHGEVisaPDF(r, ME.dob).then(function () { b.disabled = false; }, function () { b.disabled = false; toast(T("load_failed")); }); }, "sec"));
         box.appendChild(card);
       });
     }).catch(function () { box.appendChild(el("p", { cls: "err", text: T("load_failed") })); });
