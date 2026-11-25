@@ -134,11 +134,11 @@
 
 
   /* ------------------------------------------------------------------ live facial identification (no photo files) */
-  var FACE_STEPS = ["front", "left", "right", "blink", "final"], faceRun = null;
+  var FACE_STEPS = ["front", "left", "right", "final"], faceRun = null;
   function faceStep(main, onDone) {
     var wrap = el("div", { cls: "cam face live" }), video = el("video", { playsinline: true, autoplay: true, muted: true, cls: "mirror" });
     wrap.appendChild(video); wrap.appendChild(el("div", { cls: "frame" }));
-    var list = el("ol", { cls: "fsteps" }, FACE_STEPS.slice(0, 4).map(function (k) { return el("li", { text: T("fstep_" + k) }); }));
+    var list = el("ol", { cls: "fsteps" }, FACE_STEPS.slice(0, 3).map(function (k) { return el("li", { text: T("fstep_" + k) }); }));
     var tip = el("p", { cls: "camtip", text: T("face_loading") }), err = errBox(), again = el("div");
     [wrap, tip, list, err, again].forEach(function (x) { main.appendChild(x); });
     var last = "";
