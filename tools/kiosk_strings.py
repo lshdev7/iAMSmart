@@ -89,7 +89,7 @@ S = {
     # face
     "face_title": ("Align your face with the photo frame", "얼굴을 사진 틀에 맞추세요", "請對正屏幕上的照相框"),
     "face_note": ("Make sure your full frontal face is captured within the photo frame.", "얼굴 전체가 정면으로 틀 안에 들어오게 하세요.", "請確保整個正面面部在照相框內。"),
-    "face_start": ("Start", "시작", "開始"), "face_load": ("Starting the camera…", "카메라를 준비하는 중…", "正在啟動相機…"),
+    "face_start": ("Start", "시작", "開始"), "face_load": ("Starting the camera…", "카메라를 준비하는 중…", "正在啟動相機…"), "face_dl": ("Downloading the facial recognition component… {n}%", "얼굴 인식 구성 요소를 내려받는 중… {n}%", "正在下載面部識別元件… {n}%"),
     "f_front": ("Look straight at the camera and hold still.", "카메라를 정면으로 보고 잠시 멈추세요.", "請直望鏡頭並保持不動。"),
     "f_left": ("Slowly turn your head to the left.", "고개를 천천히 왼쪽으로 돌리세요.", "請慢慢把頭轉向左邊。"),
     "f_right": ("Now slowly turn your head to the right.", "이제 고개를 천천히 오른쪽으로 돌리세요.", "請慢慢把頭轉向右邊。"),

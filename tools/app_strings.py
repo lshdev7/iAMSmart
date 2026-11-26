@@ -236,6 +236,7 @@ S = {
     "auth_ok": ("Completed. You may return to {c}.", "완료되었습니다. {c}(으)로 돌아가세요.", "已完成。你可返回{c}。"), "auth_rejected": ("You have rejected the request.", "요청을 거절했습니다.", "你已拒絕請求。"),
     "back_home": ("Back to Home", "홈으로", "返回主頁"),
     "face_loading": ("Starting facial identification…", "얼굴 인증을 준비하는 중…", "正在啟動面部識別…"),
+    "face_dl": ("Downloading the facial recognition component… {n}%", "얼굴 인식 구성 요소를 내려받는 중… {n}%", "正在下載面部識別元件… {n}%"),
     "fstep_front": ("Look straight", "정면", "正面"), "fstep_left": ("Turn left", "왼쪽", "向左"), "fstep_right": ("Turn right", "오른쪽", "向右"),
     "fdo_front": ("Look straight at the camera and hold still.", "카메라를 정면으로 보고 잠시 멈추세요.", "請直望鏡頭並保持不動。"),
     "fdo_left": ("Slowly turn your head to the left.", "고개를 천천히 왼쪽으로 돌리세요.", "請慢慢把頭轉向左邊。"),

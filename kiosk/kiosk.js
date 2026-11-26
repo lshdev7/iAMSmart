@@ -387,7 +387,7 @@
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { bad("need_camera"); return; }
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 } }, audio: false }).then(function (s) {
       if (g !== gen) { s.getTracks().forEach(function (t) { t.stop(); }); return null; }
-      stream = s; video.srcObject = s; return window.IASFace.load();
+      stream = s; video.srcObject = s; return window.IASFace.load(function (p) { if (g === gen) tip.textContent = p < 100 ? T("face_dl", { n: p }) : T("face_load"); });
     }).then(function (x) {
       if (g !== gen || x === null) return null;
       var last = "";

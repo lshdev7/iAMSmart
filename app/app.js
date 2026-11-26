@@ -151,7 +151,7 @@
       tip.textContent = T("face_loading");
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 960 } }, audio: false }).then(function (s) {
         streams.push(s); video.srcObject = s;
-        return window.IASFace.load();
+        return window.IASFace.load(function (p) { tip.textContent = p < 100 ? T("face_dl", { n: p }) : T("face_loading"); });
       }).then(function () {
         faceRun = window.IASFace.run(video, function (step, hint) {
           var idx = FACE_STEPS.indexOf(step);
